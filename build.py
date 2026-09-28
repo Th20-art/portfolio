@@ -434,24 +434,26 @@ CARDS = {
 }
 CARDS_VISIBLE = 4  # les suivants s'affichent avec « Voir tous les projets »
 
-# Organisations citées dans le CV et les projets (nom, relation, composition du nom-marque).
-# Composition : None = nom sur une ligne ; ("stack", haut, bas) = deux étages ;
-# ("side", principal, complément) = principal + complément en petit à droite.
-# Aucun logo n'est redessiné : chaque nom réel est composé dans un même système typographique,
-# puis calibré optiquement (hauteur et masse communes) par assets/js/clients.js.
+# Organisations citées dans le CV et les projets : (nom, relation, voix typographique, composition).
+# Aucun logo n'est redessiné ni imité : chaque nom réel reçoit sa propre voix typographique
+# (famille, casse, construction), puis toutes les voix sont ramenées à une même masse optique
+# (surface d'encre mesurée, cf. assets/css/clients.css). Composition :
+# None = le nom tel quel ; ("stack", haut, bas) = deux étages, le bas justifié lettre à lettre ;
+# ("side", principal, "l1|l2") = principal + complément à droite ; ("split", a, b) = deux graisses ;
+# ("caret", nom) = nom suivi d'un curseur de saisie.
 CLIENTS = [
-    ("iXcampus", "Alternance · 2024 → 2026", None),
-    ("Inria", "Partenaire · LIAWALK", None),
-    ("JCDecaux", "Partenaire · Pentagone", None),
-    ("SNCF Réseau", "Stage · 2023", ("stack", "SNCF", "Réseau")),
-    ("CY école de design", "Formation · Master 2", ("side", "CY", "école de|design")),
-    ("HOWEST", "Erasmus · 2024", None),
-    ("TrembLess", "Startup · Design Studio", None),
-    ("VestaClim", "Startup · Design Studio", None),
-    ("Iroony", "Startup · Design Studio", None),
-    ("PiPop", "Startup · Design Studio", None),
-    ("Advitam", "Identité · Site iXcampus", None),
-    ("Intuiti", "Développement · Site iXcampus", None),
+    ("iXcampus", "Alternance · 2024 → 2026", "ixcampus", None),
+    ("Inria", "Partenaire · LIAWALK", "inria", None),
+    ("JCDecaux", "Partenaire · Pentagone", "jcdecaux", None),
+    ("SNCF Réseau", "Stage · 2023", "sncf", ("stack", "SNCF", "Réseau")),
+    ("CY école de design", "Formation · Master 2", "cy", ("side", "CY", "école de|design")),
+    ("HOWEST", "Erasmus · 2024", "howest", None),
+    ("TrembLess", "Startup · Design Studio", "trembless", None),
+    ("VestaClim", "Startup · Design Studio", "vestaclim", ("split", "Vesta", "Clim")),
+    ("Iroony", "Startup · Design Studio", "iroony", None),
+    ("PiPop", "Startup · Design Studio", "pipop", None),
+    ("Advitam", "Identité · Site iXcampus", "advitam", None),
+    ("Intuiti", "Développement · Site iXcampus", "intuiti", ("caret", "intuiti")),
 ]
 MARQUEE = ["Partenaires", "Clients", "Collaborations"]
 
@@ -776,20 +778,32 @@ def render_work(base):
 def render_clients(base):
     track = "".join(f"<span>{e(w)}</span>{PLUS}" for w in MARQUEE * 2)
 
-    def mark(name, lock):
+    def mark(name, voice, lock):
+        cls = f"mark mark--{voice}"
         if not lock:
-            return f'<span class="mark"><span class="mark-main">{e(name)}</span></span>'
-        kind, main, sub = lock
-        sub = "".join(f"<span>{e(x)}</span>" for x in sub.split("|"))
-        return (f'<span class="mark mark--{kind}" aria-hidden="true"><span class="mark-main">{e(main)}</span>'
-                f'<span class="mark-sub">{sub}</span></span><span class="sr-only">{e(name)}</span>')
+            return f'<span class="{cls}"><span class="mark-main">{e(name)}</span></span>'
+        kind, *parts = lock
+        if kind == "stack":
+            main, sub = parts
+            inner = (f'<span class="mark-main">{e(main)}</span>'
+                     f'<span class="mark-sub">{"".join(f"<span>{e(c)}</span>" for c in sub.upper())}</span>')
+        elif kind == "side":
+            main, sub = parts
+            inner = (f'<span class="mark-main">{e(main)}</span>'
+                     f'<span class="mark-sub">{"".join(f"<span>{e(x)}</span>" for x in sub.split("|"))}</span>')
+        elif kind == "split":
+            inner = "".join(f'<span class="mark-part">{e(x)}</span>' for x in parts)
+        else:  # caret
+            inner = f'<span class="mark-main">{e(parts[0])}</span><span class="mark-caret"></span>'
+        return (f'<span class="{cls} mark--{kind}" aria-hidden="true">{inner}</span>'
+                f'<span class="sr-only">{e(name)}</span>')
 
     tiles = "".join(f"""
-      <li class="logo" style="--i:{i}">
+      <li class="logo logo--{voice}" style="--i:{i}">
         <span class="logo-n" aria-hidden="true">{i + 1:02d}</span>
-        {mark(name, lock)}
+        {mark(name, voice, lock)}
         <span class="logo-tag">{e(tag)}</span>
-      </li>""" for i, (name, tag, lock) in enumerate(CLIENTS))
+      </li>""" for i, (name, tag, voice, lock) in enumerate(CLIENTS))
     return f"""
   <section class="clients" data-chunk="clients" data-tone="dark" aria-labelledby="clients-title">
     <h2 id="clients-title" class="sr-only">Partenaires, clients et collaborations</h2>
@@ -821,7 +835,7 @@ def build_index():
     html += f"""
 <body class="page-home" id="top">
 <main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours", base, pic=("portrait",), here="Accueil", there="À propos")}
-</main>{render_footer(base)}{scripts(base, ["hero", "work", "clients", "services"])}"""
+</main>{render_footer(base)}{scripts(base, ["hero", "work", "services"])}"""
     (ROOT / "index.html").write_text(html, encoding="utf-8")
 
 

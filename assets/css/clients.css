@@ -1,13 +1,13 @@
 /* ==========================================================================
-   Accueil · Partenaires : bandeau défilant + mur de noms-marques calibrés
-   Les noms réels sont composés dans un seul système (Archivo, axe de chasse
-   62 → 125 %) ; clients.js ajuste la chasse de chaque nom pour que tous
-   partagent la même hauteur de capitale et la même masse optique.
+   Accueil · Partenaires : bandeau défilant + mur de noms-marques
+   Aucun logo n'est redessiné ni imité. Chaque nom réel reçoit sa propre voix
+   typographique (famille, casse, construction) ; toutes les voix sont ensuite
+   ramenées à une même masse optique : --s est calculé hors ligne à partir de la
+   surface d'encre mesurée de chaque nom (même blanc, même densité perçue).
    ========================================================================== */
-@import url("https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&display=swap");
-
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,500..900&family=Bagel+Fat+One&family=Cormorant+SC:wght@500;600&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,400&family=Fredoka:wght@600&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@500&family=Mrs+Saint+Delafield&family=Outfit:wght@200;700&family=Syne:wght@800&family=Unbounded:wght@500&display=swap");
 .clients {
-  --mk: clamp(20px, 1.9vw, 32px);     /* corps commun des noms-marques */
+  --mk: clamp(20px, 2.05vw, 34px);     /* corps commun des noms-marques */
   background: var(--black); color: var(--white);
   padding: 150px 0 120px;
   overflow: hidden;
@@ -64,39 +64,65 @@
 .logo-tag { left: 13px; bottom: 12px; }
 .logo:hover .logo-n, .logo:hover .logo-tag { color: #d6d6d6; }
 
-/* Noms-marques ---------------------------------------------------------- */
+/* Noms-marques : un système commun… ------------------------------------ */
 .mark {
   display: inline-flex; align-items: center;
-  font-family: "Archivo", var(--f);
-  font-weight: calc(880 - 120 * var(--wn, .5));   /* chasse étroite = graisse plus forte */
-  font-size: calc(var(--mk) * var(--k, 1));
-  font-stretch: var(--wd, 100%);
-  line-height: 1; letter-spacing: calc(-.008em - .03em * var(--wn, .5)); white-space: nowrap;
-  color: var(--white);
+  font-size: calc(var(--mk) * var(--s, 1));
+  line-height: 1; white-space: nowrap; color: var(--white);
   font-kerning: normal; font-synthesis: none;
-  transform: translateY(var(--oy, 0));
+  transform: translate(var(--ox, 0), var(--oy, 0));
   transition: transform .9s var(--ease), opacity .6s var(--ease);
 }
-.mark-main { display: block; padding-bottom: .02em; }
+.mark-main { display: block; }
+.logo:hover .mark { transform: translate(var(--ox, 0), var(--oy, 0)) scale(1.05); }
 
-/* Deux étages : complément justifié sur la largeur du nom principal */
-.mark--stack { flex-direction: column; align-items: stretch; }
-.mark--stack .mark-sub {
-  display: flex; justify-content: space-between;
-  margin-top: .3em;
-  font-size: .34em; font-weight: 600; font-stretch: 100%; letter-spacing: 0; text-transform: uppercase;
+/* …et une voix par nom ------------------------------------------------- */
+/* 01 · géométrique large, bas de casse, le X porté en capitale */
+.mark--ixcampus { --s: 0.77; --oy: -0.048em; font-family: "Unbounded", var(--f); font-weight: 500; letter-spacing: -.04em; }
+/* 02 · italique à empattements, grand œil */
+.mark--inria { --s: 1.69; --oy: 0.006em; font-family: "Instrument Serif", serif; font-style: italic; letter-spacing: -.01em; }
+/* 03 · capitales étroites, hautes */
+.mark--jcdecaux { --s: 0.86; --oy: -0.026em; font-family: "Anton", var(--f); text-transform: uppercase; letter-spacing: .02em; }
+/* 04 · deux étages : sigle large, complément justifié lettre à lettre */
+.mark--sncf { --s: 0.78; --oy: -0.079em; flex-direction: column; align-items: stretch; font-family: "Syne", var(--f); font-weight: 800; letter-spacing: -.01em; }
+.mark--sncf .mark-sub {
+  display: flex; justify-content: space-between; margin-top: .26em;
+  font-family: "JetBrains Mono", monospace; font-size: .27em; font-weight: 500; letter-spacing: 0;
 }
-
-/* Principal + complément à droite, séparés par un filet */
-.mark--side { gap: .3em; }
-.mark--side .mark-sub {
-  display: flex; flex-direction: column; justify-content: center;
-  padding-left: .32em; border-left: max(1px, .045em) solid currentColor;
-  font-size: .36em; font-weight: 600; font-stretch: 100%; letter-spacing: -.01em; line-height: 1.02;
-  align-self: stretch;
+/* 05 · sigle à empattements doux + complément italique sous filet vertical */
+.mark--cy { --s: 1.37; --oy: -0.015em; gap: .2em; font-family: "Fraunces", serif; font-weight: 600; font-variation-settings: "opsz" 144; letter-spacing: -.03em; }
+.mark--cy .mark-sub {
+  display: flex; flex-direction: column; justify-content: center; align-self: stretch;
+  padding: .06em 0 .02em .26em; border-left: 1px solid currentColor;
+  font-size: .33em; font-style: italic; font-weight: 400; letter-spacing: 0; line-height: 1.08;
+  font-variation-settings: "opsz" 9;
 }
-
-.logo:hover .mark { transform: translateY(var(--oy, 0)) scale(1.05); }
+/* 06 · capitales très larges, au trait */
+.mark--howest { --s: 0.93; --oy: 0.041em;
+  font-family: "Archivo", var(--f); font-weight: 900; font-stretch: 125%; letter-spacing: .01em;
+  color: transparent; -webkit-text-stroke: max(1.3px, .045em) var(--white);
+}
+/* 07 · écriture cursive */
+.mark--trembless { --s: 1.46; --oy: 0.193em; font-family: "Mrs Saint Delafield", cursive; letter-spacing: 0; }
+/* 08 · un nom, deux graisses, deux étages */
+.mark--vestaclim { --s: 1.07; --oy: -0.030em; font-family: "Outfit", var(--f); letter-spacing: -.03em; text-transform: lowercase;
+  flex-direction: column; align-items: flex-start; line-height: .86; }
+.mark--vestaclim .mark-part:first-child { font-weight: 200; }
+.mark--vestaclim .mark-part:last-child { font-weight: 700; }
+/* 09 · arrondie, bas de casse */
+.mark--iroony { --s: 1.15; --oy: -0.06em; font-family: "Fredoka", var(--f); font-weight: 600; letter-spacing: -.02em; text-transform: lowercase; }
+/* 10 · pleine et ronde */
+.mark--pipop { --s: 1.10; --oy: -0.11em; font-family: "Bagel Fat One", var(--f); letter-spacing: -.01em; }
+/* 11 · capitales romaines espacées */
+.mark--advitam { --s: 1.11; --oy: 0.020em; font-family: "Cormorant SC", serif; font-weight: 600; letter-spacing: .14em; margin-right: -.14em; text-transform: uppercase; }
+/* 12 · chasse fixe + curseur de saisie */
+.mark--intuiti { --s: 1.00; --oy: 0.013em; font-family: "JetBrains Mono", monospace; font-weight: 500; letter-spacing: -.02em; }
+.mark-caret {
+  width: .55em; height: .16em; margin-left: .08em; align-self: flex-end; margin-bottom: .1em;
+  background: currentColor;
+}
+.logo:hover .mark-caret { animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
 
 /* Apparition échelonnée (finit toujours visible) */
 .js .logos[data-reveal] { opacity: 1; transform: none; transition: none; }
@@ -118,6 +144,6 @@
   .logo-tag { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .marquee-track { animation: none; }
+  .marquee-track, .logo:hover .mark-caret { animation: none; }
   .js .logos .logo { opacity: 1; transform: none; }
 }
