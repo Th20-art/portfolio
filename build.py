@@ -626,17 +626,14 @@ def render_footer(base):
     pages = [("Accueil", home), ("Projets", f"{home}#projets"), ("À propos", f"{base}a-propos.html")]
     projs = [(p["title"], f"{base}projets/{p['slug']}.html") for p in PROJECTS]
     half = (len(projs) + 1) // 2
+    name = SITE["name"]
     return f"""
 <footer class="footer" id="contact" data-chunk="footer" data-tone="dark">
-  <div class="footer-top">
-    <p class="footer-mark">Théo Petitimbert</p>
-    <p class="footer-time"><span class="tiny">Heure locale · Paris</span><strong data-clock>--:--</strong></p>
-  </div>
   <div class="footer-cols grid">
-    <div class="footer-col">
+    <div class="footer-col footer-col--cta">
       <h2 class="footer-h">Travaillons ensemble</h2>
-      <ul class="footer-list">
-        <li><a class="ulink" href="mailto:{SITE['email']}">{e(SITE['email'])}</a></li>
+      <a class="footer-mail" href="mailto:{SITE['email']}"><span>{e(SITE['email'])}</span>{ARROW_UP}</a>
+      <ul class="footer-list footer-list--row">
         <li><a href="tel:{SITE['phone_href']}">{e(SITE['phone'])}</a></li>
         <li>{e(' · '.join(SITE['roles']))}</li>
       </ul>
@@ -649,10 +646,12 @@ def render_footer(base):
         <ul class="footer-list">{lis(projs[half:])}</ul>
       </div>
     </nav>
+    <p class="footer-col footer-time"><span class="footer-h">Heure locale · Paris</span><strong data-clock>--:--</strong></p>
   </div>
+  <p class="footer-mark" data-reveal><span class="fm-w"><span class="fm-t">{e(name)}</span></span></p>
   <div class="footer-bar">
     <a href="#top">{ARROW_TOP} Retour en haut</a>
-    <span>© 2026 Théo Petitimbert · Portfolio 2026</span>
+    <span>© 2026 {e(name)} · Portfolio 2026</span>
     <a href="{SITE['linkedin']}" target="_blank" rel="noopener">Suivre sur LinkedIn {ARROW_UP}</a>
   </div>
 </footer>"""
