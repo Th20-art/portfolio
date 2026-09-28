@@ -37,12 +37,17 @@
   hero.querySelector('[data-prev]')?.addEventListener('click', () => go(idx - 1));
   hero.querySelector('[data-next]')?.addEventListener('click', () => go(idx + 1));
 
-  const pause = (on) => hero.classList.toggle('is-paused', on);
-  hero.addEventListener('mouseenter', () => pause(true));
-  hero.addEventListener('mouseleave', () => pause(false));
-  hero.addEventListener('focusin', () => pause(true));
-  hero.addEventListener('focusout', () => pause(false));
-  document.addEventListener('visibilitychange', () => pause(document.hidden));
+  /* Pause : survol, focus, onglet masqué ou hero hors de l'écran. */
+  const why = new Set();
+  const pause = (k, on) => { on ? why.add(k) : why.delete(k); hero.classList.toggle('is-paused', why.size > 0); };
+  hero.addEventListener('mouseenter', () => pause('hover', true));
+  hero.addEventListener('mouseleave', () => pause('hover', false));
+  hero.addEventListener('focusin', () => pause('focus', true));
+  hero.addEventListener('focusout', () => pause('focus', false));
+  document.addEventListener('visibilitychange', () => pause('tab', document.hidden));
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([en]) => pause('view', en.intersectionRatio < 0.35), { threshold: [0, 0.35, 1] }).observe(hero);
+  }
   hero.addEventListener('keydown', (ev) => {
     if (ev.key === 'ArrowRight') go(idx + 1);
     if (ev.key === 'ArrowLeft') go(idx - 1);
