@@ -14,16 +14,45 @@
   grid-column: 7 / span 6;
 }
 .services-list li {
-  --k: 1;
+  --k: 1; --e: 0; --x: 0;
   font-size: clamp(24px, 1.95vw, 30px); line-height: 1.12; font-weight: 600; letter-spacing: -.035em;
   color: color-mix(in srgb, var(--ink) calc(var(--k) * 100%), #e2e2e1);
-  transition: color .35s linear;
 }
-.js .services-list li { --k: 0; }
+/* Point focal fixe au centre du viewport : un seul élément à l'encre,
+   dégradé continu au-dessus/en dessous (--k), fondu vers le fond aux bords
+   de l'écran (--e) et léger glissement de l'élément actif (--x). Aucune
+   transition : la couleur suit le défilement image par image. */
+.js .services-list li {
+  --k: 0;
+  color: color-mix(in srgb, color-mix(in srgb, var(--ink) calc(var(--k) * 100%), #e2e2e1) calc(100% - var(--e) * 75%), var(--bg));
+  transform: translate3d(calc(var(--x) * 1px), 0, 0);
+}
+
+/* Compteur à rouleau sous l'intitulé : défile en continu avec le point focal */
+.services-count {
+  display: flex; align-items: baseline; gap: .5em;
+  margin-top: 14px;
+  font-size: 10px; font-weight: 500; line-height: 14px;
+  font-variant-numeric: tabular-nums; color: var(--mute);
+  opacity: 0; transition: opacity .6s var(--ease);
+}
+.services-count.is-live { opacity: 1; }
+.services-count .roll { height: 14px; overflow: hidden; color: var(--ink); }
+.services-count .roll span { display: block; will-change: transform; }
+.services-count .roll i { display: block; font-style: normal; height: 14px; }
+.services-count b { font-weight: 500; }
+.services-count .bar { position: relative; width: 56px; height: 1px; background: var(--faint); align-self: center; }
+.services-count .bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .services-list li { transform: none; }
+  .services-count { display: none; }
+}
 
 @media (max-width: 800px) {
   .services { padding: 90px var(--g); }
   .services-label { grid-column: 1 / -1; position: static; margin: 0 0 24px; }
   .services-list { grid-column: 1 / -1; }
   .services-list li { font-size: 28px; }
+  .services-count { display: none; }
 }
