@@ -425,7 +425,7 @@ HERO_DIM = 0.9  # les visuels détourés sont légèrement assombris pour un fon
 
 # Visuel de chaque projet dans la grille de l'accueil
 CARDS = {
-    "vision": "vision-cover", "liawalk": "liawalk-cover", "pentagone": "pentagone-nfc",
+    "vision": "work-vision", "liawalk": "liawalk-cover", "pentagone": "work-pentagone",
     "site-ixcampus": "ixcampus-mobile", "lannion": "lannion-book", "design-fablab": "fablab-cover",
 }
 CARDS_VISIBLE = 4  # les suivants s'affichent avec « Voir tous les projets »
