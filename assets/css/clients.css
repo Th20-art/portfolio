@@ -1,11 +1,19 @@
 /* ==========================================================================
-   Accueil · Partenaires : bandeau défilant + mur de noms typographiques
+   Accueil · Partenaires : bandeau défilant + mur de noms-marques calibrés
+   Les noms réels sont composés dans un seul système (Archivo, axe de chasse
+   62 → 125 %) ; clients.js ajuste la chasse de chaque nom pour que tous
+   partagent la même hauteur de capitale et la même masse optique.
    ========================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&display=swap");
+
 .clients {
+  --mk: clamp(20px, 1.9vw, 32px);     /* corps commun des noms-marques */
   background: var(--black); color: var(--white);
-  padding: 150px 0 170px;
+  padding: 150px 0 120px;
   overflow: hidden;
 }
+
+/* Bandeau --------------------------------------------------------------- */
 .marquee { display: flex; overflow: hidden; user-select: none; }
 .marquee-track {
   display: flex; flex: none; align-items: center; gap: .42em; padding-right: .42em;
@@ -17,37 +25,99 @@
 @keyframes marquee { to { transform: translateX(-100%); } }
 .clients:hover .marquee-track { animation-play-state: paused; }
 
+/* En-tête du mur -------------------------------------------------------- */
+.clients-head {
+  margin: 44px var(--g) 0; padding: 12px 0 14px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  border-top: 1px solid rgba(255, 255, 255, .16);
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1.3; color: #8a8a8a;
+}
+.clients-head p { margin: 0; }
+.clients-head p:last-child { white-space: nowrap; }
+.clients-count { color: var(--white); margin-right: .5em; font-variant-numeric: tabular-nums; }
+
+/* Mur ------------------------------------------------------------------- */
 .logos {
-  margin-top: 46px; padding-inline: var(--g);
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  margin: 0; padding: 0 var(--g); list-style: none;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;
 }
 .logo {
-  position: relative; height: clamp(150px, 14.2vw, 218px);
+  position: relative; height: clamp(170px, 14.6vw, 226px);
   display: grid; place-items: center;
   background: var(--tile);
-  transition: background-color .5s var(--ease);
+  transition: background-color .6s var(--ease);
 }
-.logo:hover { background: #1b1b1b; }
-.logo-tag {
-  position: absolute; top: 11px; right: 12px; font-size: 9px; font-weight: 500; color: #6d6d6d;
-  transition: color .4s;
+.logo::after {                /* filet intérieur, révélé au survol */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0);
+  transition: box-shadow .6s var(--ease);
 }
-.logo:hover .logo-tag { color: #bdbdbd; }
-.logo-name {
-  font-size: clamp(20px, 1.75vw, 27px); line-height: 1; white-space: nowrap;
-  transition: transform .8s var(--ease);
-}
-.logo:hover .logo-name { transform: scale(1.06); }
-/* variations typographiques (même famille, largeurs et graisses différentes) */
-.logo-name--a { font-weight: 700; letter-spacing: -.05em; }
-.logo-name--b { font-weight: 600; text-transform: uppercase; letter-spacing: .14em; font-size: clamp(14px, 1.2vw, 18px); }
-.logo-name--c { font-weight: 700; font-stretch: 75%; text-transform: uppercase; letter-spacing: -.01em; font-size: clamp(24px, 2.1vw, 32px); }
-.logo-name--d { font-weight: 400; letter-spacing: -.03em; }
-.logo-name--e { font-weight: 500; font-style: italic; letter-spacing: -.03em; }
+.logo:hover { background: #171717; }
+.logo:hover::after { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
 
-@media (max-width: 800px) {
-  .clients { padding: 90px 0 100px; }
-  .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .logo { height: 120px; }
+.logo-n, .logo-tag {
+  position: absolute; font-size: 10px; font-weight: 500; line-height: 1; letter-spacing: .01em;
+  color: #5c5c5c; font-variant-numeric: tabular-nums;
+  transition: color .5s var(--ease), transform .7s var(--ease), opacity .5s var(--ease);
 }
-@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+.logo-n { top: 12px; right: 13px; }
+.logo-tag { left: 13px; bottom: 12px; }
+.logo:hover .logo-n, .logo:hover .logo-tag { color: #d6d6d6; }
+
+/* Noms-marques ---------------------------------------------------------- */
+.mark {
+  display: inline-flex; align-items: center;
+  font-family: "Archivo", var(--f);
+  font-weight: calc(880 - 120 * var(--wn, .5));   /* chasse étroite = graisse plus forte */
+  font-size: calc(var(--mk) * var(--k, 1));
+  font-stretch: var(--wd, 100%);
+  line-height: 1; letter-spacing: calc(-.008em - .03em * var(--wn, .5)); white-space: nowrap;
+  color: var(--white);
+  font-kerning: normal; font-synthesis: none;
+  transform: translateY(var(--oy, 0));
+  transition: transform .9s var(--ease), opacity .6s var(--ease);
+}
+.mark-main { display: block; padding-bottom: .02em; }
+
+/* Deux étages : complément justifié sur la largeur du nom principal */
+.mark--stack { flex-direction: column; align-items: stretch; }
+.mark--stack .mark-sub {
+  display: flex; justify-content: space-between;
+  margin-top: .3em;
+  font-size: .34em; font-weight: 600; font-stretch: 100%; letter-spacing: 0; text-transform: uppercase;
+}
+
+/* Principal + complément à droite, séparés par un filet */
+.mark--side { gap: .3em; }
+.mark--side .mark-sub {
+  display: flex; flex-direction: column; justify-content: center;
+  padding-left: .32em; border-left: max(1px, .045em) solid currentColor;
+  font-size: .36em; font-weight: 600; font-stretch: 100%; letter-spacing: -.01em; line-height: 1.02;
+  align-self: stretch;
+}
+
+.logo:hover .mark { transform: translateY(var(--oy, 0)) scale(1.05); }
+
+/* Apparition échelonnée (finit toujours visible) */
+.js .logos[data-reveal] { opacity: 1; transform: none; transition: none; }
+.js .logos .logo { opacity: 0; transform: translate3d(0, 22px, 0); }
+.js .logos.is-in .logo {
+  opacity: 1; transform: none;
+  transition: opacity .9s var(--ease) calc(var(--i) * 45ms), transform 1.1s var(--ease) calc(var(--i) * 45ms),
+    background-color .6s var(--ease);
+}
+
+@media (max-width: 1100px) {
+  .logos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  .clients { padding: 90px 0 100px; --mk: 21px; }
+  .clients-head { margin-top: 30px; }
+  .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logo { height: 124px; }
+  .logo-tag { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+  .js .logos .logo { opacity: 1; transform: none; }
+}
