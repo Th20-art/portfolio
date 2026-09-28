@@ -1,0 +1,67 @@
+/* ==========================================================================
+   Projet · Hero : image plein cadre, titre en bas à gauche
+   ========================================================================== */
+.phero {
+  position: relative;
+  height: 100vh; height: 100svh; min-height: 600px;
+  overflow: hidden; isolation: isolate;
+  background: var(--bg-2);
+  color: var(--ink);
+}
+.phero--dark { color: var(--white); background: #2a2a2a; }
+.phero-media { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.phero-media img {
+  width: 100%; height: 100%; object-fit: cover; object-position: var(--pos, 50% 50%);
+  transform: scale(1.06); transition: transform 2.4s var(--ease);
+}
+.is-ready .phero-media img, .phero-media img.is-in { transform: none; }
+.phero-media::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .34) 0%, rgba(0, 0, 0, 0) 55%),
+              linear-gradient(0deg, rgba(0, 0, 0, .28) 0%, rgba(0, 0, 0, 0) 40%);
+}
+.phero--light .phero-media::after {
+  background: linear-gradient(90deg, rgba(243, 243, 242, .55) 0%, rgba(243, 243, 242, 0) 50%);
+}
+
+.phero-title {
+  position: absolute; left: var(--g); top: 59%; transform: translateY(-50%);
+  font-size: var(--fs-display); line-height: .95; font-weight: 500; letter-spacing: -.045em;
+  max-width: 11ch;
+}
+.phero-title > span { display: block; overflow: hidden; padding-bottom: .08em; }
+.phero-title > span > span { display: block; animation: phero-up 1.2s var(--ease) .1s both; }
+@keyframes phero-up { from { transform: translateY(105%); } }
+
+.phero-year {
+  position: absolute; left: var(--g); bottom: 92px;
+  font-size: clamp(18px, 1.5vw, 24px); font-weight: 500; letter-spacing: -.02em; line-height: 1;
+}
+.phero-text {
+  position: absolute; left: calc(var(--g) + (100% - 2 * var(--g) + var(--gap)) / 12 * 8); top: 69%;
+  width: min(330px, 26vw);
+  font-size: var(--fs-xs); line-height: 1.45; font-weight: 500;
+  animation: phero-fade 1.2s var(--ease) .5s both;
+}
+@keyframes phero-fade { from { opacity: 0; transform: translateY(10px); } }
+
+.phero-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  height: 42px; padding: 0 var(--g);
+  font-size: 10px; font-weight: 500;
+  border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+}
+.phero-bar > :last-child { justify-self: end; }
+.phero-bar a { display: inline-flex; align-items: center; gap: 8px; }
+.phero-bar i { width: 14px; height: 1px; background: currentColor; display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .phero-title > span > span, .phero-text { animation: none; }
+}
+@media (max-width: 800px) {
+  .phero-title { top: auto; bottom: 212px; transform: none; font-size: 48px; }
+  .phero-year { bottom: 176px; font-size: 18px; }
+  .phero-text { left: var(--g); top: auto; bottom: 80px; width: auto; right: var(--g); }
+  .phero-bar { display: none; }
+}

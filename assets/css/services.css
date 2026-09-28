@@ -1,0 +1,29 @@
+/* ==========================================================================
+   Accueil · Savoir-faire : liste verticale, surlignage lié au scroll
+   ========================================================================== */
+.services {
+  padding: 110px var(--g) 150px;
+  align-items: start;
+}
+.services-label {
+  grid-column: 1 / span 4;
+  position: sticky; top: 50vh; align-self: center;
+  font-size: 10px; font-weight: 500; line-height: 1.35;
+}
+.services-list {
+  grid-column: 7 / span 6;
+}
+.services-list li {
+  --k: 1;
+  font-size: clamp(24px, 1.95vw, 30px); line-height: 1.12; font-weight: 600; letter-spacing: -.035em;
+  color: color-mix(in srgb, var(--ink) calc(var(--k) * 100%), #e2e2e1);
+  transition: color .35s linear;
+}
+.js .services-list li { --k: 0; }
+
+@media (max-width: 800px) {
+  .services { padding: 90px var(--g); }
+  .services-label { grid-column: 1 / -1; position: static; margin: 0 0 24px; }
+  .services-list { grid-column: 1 / -1; }
+  .services-list li { font-size: 28px; }
+}

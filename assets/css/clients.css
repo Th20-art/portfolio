@@ -1,0 +1,53 @@
+/* ==========================================================================
+   Accueil · Partenaires : bandeau défilant + mur de noms typographiques
+   ========================================================================== */
+.clients {
+  background: var(--black); color: var(--white);
+  padding: 150px 0 170px;
+  overflow: hidden;
+}
+.marquee { display: flex; overflow: hidden; user-select: none; }
+.marquee-track {
+  display: flex; flex: none; align-items: center; gap: .42em; padding-right: .42em;
+  font-size: clamp(40px, 4.3vw, 66px); font-weight: 500; letter-spacing: -.035em; line-height: 1.1;
+  white-space: nowrap;
+  animation: marquee 38s linear infinite;
+}
+.marquee-plus { width: .36em; height: .36em; flex: none; opacity: .9; }
+@keyframes marquee { to { transform: translateX(-100%); } }
+.clients:hover .marquee-track { animation-play-state: paused; }
+
+.logos {
+  margin-top: 46px; padding-inline: var(--g);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+}
+.logo {
+  position: relative; height: clamp(150px, 14.2vw, 218px);
+  display: grid; place-items: center;
+  background: var(--tile);
+  transition: background-color .5s var(--ease);
+}
+.logo:hover { background: #1b1b1b; }
+.logo-tag {
+  position: absolute; top: 11px; right: 12px; font-size: 9px; font-weight: 500; color: #6d6d6d;
+  transition: color .4s;
+}
+.logo:hover .logo-tag { color: #bdbdbd; }
+.logo-name {
+  font-size: clamp(20px, 1.75vw, 27px); line-height: 1; white-space: nowrap;
+  transition: transform .8s var(--ease);
+}
+.logo:hover .logo-name { transform: scale(1.06); }
+/* variations typographiques (même famille, largeurs et graisses différentes) */
+.logo-name--a { font-weight: 700; letter-spacing: -.05em; }
+.logo-name--b { font-weight: 600; text-transform: uppercase; letter-spacing: .14em; font-size: clamp(14px, 1.2vw, 18px); }
+.logo-name--c { font-weight: 700; font-stretch: 75%; text-transform: uppercase; letter-spacing: -.01em; font-size: clamp(24px, 2.1vw, 32px); }
+.logo-name--d { font-weight: 400; letter-spacing: -.03em; }
+.logo-name--e { font-weight: 500; font-style: italic; letter-spacing: -.03em; }
+
+@media (max-width: 800px) {
+  .clients { padding: 90px 0 100px; }
+  .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logo { height: 120px; }
+}
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }

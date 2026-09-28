@@ -1,0 +1,34 @@
+/* ==========================================================================
+   Page suivante : grand titre centré, lien vers la page suivante
+   ========================================================================== */
+.next {
+  position: relative;
+  margin-inline: var(--g);
+  border-top: 1px solid var(--line);
+  min-height: 740px;
+  display: grid; grid-template-rows: auto 1fr;
+  text-align: center;
+}
+.next-label { padding-top: 18px; font-size: var(--fs-xs); font-weight: 500; }
+.next-link {
+  align-self: center; justify-self: center;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding: 40px 20px 90px;
+}
+.next-title {
+  font-size: var(--fs-display); line-height: .98; font-weight: 600; letter-spacing: -.045em;
+}
+.next-title .line { display: block; overflow: hidden; padding-bottom: .06em; }
+.next-title .line > span { display: block; transition: transform .9s var(--ease); }
+.next-link:hover .next-title .line > span { transform: translateY(-4px); }
+.next-sub {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--ink-2);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.next-sub .arrow { width: 11px; height: 11px; transition: transform .6s var(--ease); }
+.next-link:hover .next-sub .arrow { transform: translateX(4px); }
+
+@media (max-width: 800px) {
+  .next { min-height: 440px; }
+  .next-title { font-size: 44px; }
+}

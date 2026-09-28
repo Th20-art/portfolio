@@ -1,0 +1,48 @@
+/* ==========================================================================
+   Pied de page noir
+   ========================================================================== */
+.footer {
+  background: var(--dark); color: var(--white);
+  padding: 130px var(--g) 0;
+  min-height: 820px;
+  display: flex; flex-direction: column;
+}
+.footer-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.footer-mark {
+  font-size: clamp(56px, 8vw, 126px); line-height: .82; font-weight: 500; letter-spacing: -.055em;
+  margin-left: -.04em;
+}
+.footer-time { text-align: right; padding-bottom: 12px; }
+.footer-time .tiny { color: #8a8a8a; display: block; margin-bottom: 4px; font-size: 9px; }
+.footer-time strong { font-size: var(--fs-s); font-weight: 600; }
+
+.footer-cols {
+  margin-top: 50px; padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  row-gap: 30px;
+}
+.footer-h { font-size: 10px; font-weight: 500; margin-bottom: 14px; }
+.footer-col { grid-column: 1 / span 6; }
+.footer-col--map { grid-column: 7 / span 6; }
+.footer-list li { font-size: 10px; line-height: 1.7; font-weight: 450; color: #d8d8d8; }
+.footer-list a:hover { color: var(--white); }
+.footer-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); }
+
+.footer-bar {
+  margin-top: auto;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: 26px 0 64px;
+  font-size: 10px; font-weight: 500;
+}
+.footer-bar > :last-child { justify-self: end; }
+.footer-bar a { display: inline-flex; align-items: center; gap: 8px; }
+.footer-bar .arrow { width: 10px; height: 10px; }
+
+@media (max-width: 800px) {
+  .footer { min-height: 0; padding-top: 56px; }
+  .footer-top { flex-direction: column; align-items: flex-start; }
+  .footer-time { text-align: left; }
+  .footer-col, .footer-col--map { grid-column: 1 / -1; }
+  .footer-bar { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 60px; padding-bottom: 90px; }
+  .footer-bar > :nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+}
