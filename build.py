@@ -412,16 +412,20 @@ INTRO_LINES = ["Je transforme", "des sujets complexes", "en expériences utiles"
 
 # Carrousel du hero : projet, visuel plein cadre et recadrage
 HERO_SLIDES = [
-    # fit : visuel détouré posé au centre (fx/fy = point focal, h = hauteur) ; sinon plein cadre
-    {"slug": "vision", "img": "vision-screens", "alt": "Trois écrans de l’application Vision",
-     "fit": {"h": "84%", "fx": "52%", "fy": "50%"}},
+    # fit : visuel détouré posé sur le fond (cx = position horizontale dans l'écran, fx/fy = point focal,
+    # h = hauteur) ; sinon plein cadre. k = corps du titre en vw. line = phrase courte reprise du projet.
+    {"slug": "vision", "img": "hero-vision-screens", "alt": "Trois écrans de l’application Vision",
+     "fit": {"h": "90%", "fx": "51%", "fy": "52%", "cx": "64%"}, "k": 15,
+     "line": "Une application qui intercepte les tentations d’achat et aide à formuler des objectifs."},
     {"slug": "liawalk", "img": "liawalk-float", "alt": "Rendu 3D du dispositif mobile LIAWALK",
-     "pos": "50% 62%", "zoom": 1.16, "origin": "62% 64%"},
+     "pos": "50% 62%", "zoom": 1.16, "origin": "62% 64%", "k": 10.4,
+     "line": "Des doubles numériques nés du vécu professionnel des travailleurs sociaux."},
     {"slug": "pentagone", "img": "pentagone-cover", "alt": "Module pentagonal en liège, vue de dessus",
-     "fit": {"h": "86%", "fx": "73%", "fy": "35%"}},
+     "fit": {"h": "80%", "fx": "73%", "fy": "35%", "cx": "64%"}, "k": 9.6,
+     "line": "Un banc augmenté en mobilier urbain, point d’entrée vers l’engagement citoyen local."},
 ]
 
-HERO_DIM = 0.9  # les visuels détourés sont légèrement assombris pour un fond gris
+HERO_DIM = 0.95  # les visuels détourés sont légèrement assombris pour un fond gris
 
 # Visuel de chaque projet dans la grille de l'accueil
 CARDS = {
@@ -667,21 +671,30 @@ def render_hero(base):
     slides = nums = ""
     for i, s in enumerate(HERO_SLIDES):
         p = by[s["slug"]]
+        href = f"{base}projets/{p['slug']}.html"
         on = " is-active" if i == 0 else ""
-        style = f'--pos:{s.get("pos", "50% 50%")};--zoom:{s.get("zoom", 1)};--origin:{s.get("origin", "50% 50%")}'
+        style = (f'--pos:{s.get("pos", "50% 50%")};--zoom:{s.get("zoom", 1)};'
+                 f'--origin:{s.get("origin", "50% 50%")};--k:{s.get("k", 10)}')
         fit = s.get("fit")
         if fit:
-            style += (f';--h:{fit["h"]};--fx:{fit["fx"]};--fy:{fit["fy"]};'
+            style += (f';--h:{fit["h"]};--fx:{fit["fx"]};--fy:{fit["fy"]};--cx:{fit.get("cx", "50%")};'
                       f'--b:{HERO_DIM};--slide-bg:{edge_color(s["img"], HERO_DIM)}')
         mode = " hero-slide--fit" if fit else ""
         slides += f"""
       <article class="hero-slide{mode}{on}" aria-roledescription="diapositive" aria-label="{i + 1} sur {n}" style="{style}">
         <div class="hero-media">{img(s['img'], s['alt'], base, eager=i == 0)}</div>
-        <h2 class="hero-title"><a href="{base}projets/{p['slug']}.html"><span>{e(p['title'])}</span></a></h2>
-        <p class="hero-caption">{e(p['context'])} · {p['year']}<br>{e(p['tags'])}</p>
+        <div class="hero-copy">
+          <p class="hero-kicker"><span>({i + 1:02d})</span>{e(p['context'])}</p>
+          <h2 class="hero-title"><a href="{href}"><span>{e(p['title'])}</span></a></h2>
+          <div class="hero-sub">
+            <p>{e(s['line'])}</p>
+            <a class="hero-cta" href="{href}" tabindex="-1" aria-hidden="true"><span>Voir le projet</span><i>{ARROW}</i></a>
+          </div>
+        </div>
+        <p class="hero-caption"><span>{p['year']}</span>{e(p['tags'])}</p>
       </article>"""
         nums += f"""
-      <button type="button" class="hero-num{on}" data-go="{i}" aria-label="Afficher {e(p['title'])}"><span>{i + 1:02d}.</span><i class="track" aria-hidden="true"><i class="fill"></i></i></button>"""
+      <button type="button" class="hero-num{on}" data-go="{i}" aria-label="Afficher {e(p['title'])}"><span class="hero-num-n">{i + 1:02d}.</span><span class="hero-num-t" aria-hidden="true">{e(p['title'])}<small>{e(p['tags'])}</small></span><i class="track" aria-hidden="true"><i class="fill"></i></i></button>"""
     return f"""
   <section class="hero" data-chunk="hero" data-hero aria-roledescription="carrousel" aria-label="Projets à la une">
     <a class="skip" href="#intro">Aller au contenu</a>
