@@ -740,7 +740,7 @@ def render_work(base):
     <div class="work-foot">
       <button type="button" class="work-toggle" data-more-toggle aria-expanded="false" aria-controls="work-more" data-close-label="Voir moins de projets" hidden>
         <span class="work-plus" aria-hidden="true"></span>
-        <span class="work-all"><span data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
+        <span class="work-all"><span class="work-all-label" data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
       </button>
     </div>
   </section>"""

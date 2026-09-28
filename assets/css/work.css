@@ -1,7 +1,7 @@
 /* ==========================================================================
    Accueil · Projets : grille éditoriale asymétrique
    ========================================================================== */
-.work { padding: 34px var(--g) 150px; }
+.work { padding: 34px var(--g) 128px; }
 .work-grid { row-gap: 110px; align-items: end; }
 
 .card { position: relative; }
@@ -39,22 +39,44 @@
 .work-more { display: contents; }
 .work-more[hidden] { display: none; }
 
-.work-foot { display: flex; justify-content: center; margin-top: 96px; }
-.work-toggle { display: flex; flex-direction: column; align-items: center; gap: 74px; }
-.work-plus { position: relative; width: 19px; height: 19px; transition: transform .6s var(--ease); }
-.work-plus::before, .work-plus::after { content: ""; position: absolute; background: currentColor; }
-.work-plus::before { left: 0; right: 0; top: 9px; height: 1.4px; }
-.work-plus::after { top: 0; bottom: 0; left: 9px; width: 1.4px; }
-.work-toggle:hover .work-plus, .work-toggle[aria-expanded="true"] .work-plus { transform: rotate(90deg); }
-.work-toggle[aria-expanded="true"] .work-plus::after { transform: scaleY(0); }
-.work-all {
-  font-size: clamp(18px, 1.55vw, 25px); font-weight: 600; letter-spacing: -.025em; line-height: 1;
-  text-decoration: underline; text-decoration-thickness: 1.6px; text-underline-offset: 5px;
+.work-foot { display: flex; justify-content: center; margin-top: 84px; }
+.work-toggle {
+  display: inline-flex; align-items: center; gap: clamp(16px, 1.5vw, 24px);
+  font-size: var(--fs-display); line-height: 1; text-align: left;
 }
-.work-all sup { font-size: 9px; font-weight: 600; margin-left: 2px; vertical-align: 10px; text-decoration: none; display: inline-block; }
+.work-plus {
+  position: relative; flex: none; width: .86em; height: .86em; border-radius: 50%;
+  background: var(--ink); color: var(--bg);
+  transition: transform .7s var(--ease), background-color .4s;
+}
+.work-plus::before, .work-plus::after {
+  content: ""; position: absolute; left: 50%; top: 50%; background: currentColor;
+  transition: transform .5s var(--ease);
+}
+.work-plus::before { width: 36%; height: 3px; transform: translate(-50%, -50%); }
+.work-plus::after { width: 3px; height: 36%; transform: translate(-50%, -50%); }
+.work-toggle:hover .work-plus { transform: rotate(90deg); }
+.work-toggle[aria-expanded="true"] .work-plus::after { transform: translate(-50%, -50%) scaleY(0); }
+.work-all {
+  display: inline-flex; align-items: flex-start;
+  font-weight: 600; letter-spacing: -.048em; white-space: nowrap;
+}
+.work-all-label {
+  text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: .14em;
+  text-decoration-skip-ink: auto; text-decoration-color: currentColor;
+  transition: text-decoration-color .5s var(--ease), text-underline-offset .5s var(--ease);
+}
+.work-toggle:hover .work-all-label { text-decoration-color: transparent; text-underline-offset: .3em; }
+.work-all sup {
+  font-size: 13px; font-weight: 600; letter-spacing: 0; line-height: 1;
+  margin: .2em 0 0 6px; vertical-align: 0;
+}
 .work-toggle[hidden] { display: none; }
 
 @media (max-width: 800px) {
+  .work-foot { margin-top: 64px; }
+  .work-toggle { font-size: clamp(26px, 8.4vw, 44px); }
+  .work-plus::before { height: 2px; } .work-plus::after { width: 2px; }
   .work-grid { row-gap: 56px; }
   .card--a, .card--b, .card--c, .card--d, .card--e, .card--f { grid-column: 1 / -1; margin-top: 0; }
   .card--b, .card--d { grid-column: 3 / -1; }
