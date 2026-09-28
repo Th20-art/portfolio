@@ -478,16 +478,27 @@ SET_LAYOUT = {
 # Échelle imposée à certaines images (sinon déduite du bloc) :
 #   bleed = plein cadre avec le titre de la section précédente posé dessus
 #   side / stack = image large à côté du texte ou pleine largeur sous le titre
+#   plate = titre d'affiche au-dessus, visuel sur toute la grille, texte relégué en légende
 PG_SCALE = {
     "vision-constat": "bleed",
-    "vision-benchmark": "side",
-    "vision-poc": "stack",
-    "vision-layers": "side",
+    "vision-benchmark": "plate",
+    "vision-poc": "plate",
+    "vision-layers": "stage",
+    "vision-gamification": "side",
 }
 # Recadrage (fractions x0, y0, x1, y1) de certains dérivés aplatis
 PG_CROP = {
     "vision-userflow": (0, 0, 1, .54),
+    "vision-layers": (.57, .27, .935, .63),  # le schéma en couches seul : les écrans passent en plein cadre
 }
+# Zones effacées (fond de page) d'un dérivé aplati
+PG_ERASE = {}
+# stage = plein cadre d'un rendu du projet, titre posé à gauche, puis le schéma du bloc en second plan
+PG_STAGE = {
+    "vision-layers": ("vision-screens", "Trois écrans de l’application Vision"),
+}
+# Schémas dont les gris sont densifiés (traits et textes plus lisibles à petite échelle)
+PG_INK = {"vision-benchmark": 1.8, "vision-poc": 1.7, "vision-smart": 2.0, "vision-userflow": 1.9}
 STUDIO_LAYOUT = [(1, 5, 0), (8, 4, 140), (3, 4, 0), (8, 5, 80)]
 
 FONTS = ("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@"
@@ -916,7 +927,7 @@ PAGE_RGB = (243, 243, 242)
 _flat = {}
 
 
-def pg_flat(name):
+def pg_flat(name, tight=True):
     """Planche sur fond clair uni : dérivé 'pgallery-*' dont le fond devient celui de la page,
     pour que le visuel flotte sans cartouche. Renvoie (nom à utiliser, aplati ?)."""
     if name in _flat:
@@ -941,10 +952,14 @@ def pg_flat(name):
                 pc = PAGE_RGB[c]
                 bands.append(band.point(lambda v, t=t, pc=pc: min(pc, round(v * pc / t))))
             flat = Image.merge("RGB", bands)
+            if name in PG_INK:
+                g = PG_INK[name]
+                flat = Image.merge("RGB", [b.point(lambda v, pc=pc: round(pc * (v / pc) ** g) if v < pc else v)
+                                           for b, pc in zip(flat.split(), PAGE_RGB)])
             # recadrage serré sur le contenu : la planche occupe toute sa colonne
             diff = ImageChops.difference(flat, Image.new("RGB", flat.size, PAGE_RGB)).convert("L")
             box = diff.point(lambda v: 255 if v > 18 else 0).getbbox()
-            if box:
+            if box and tight:
                 pad = int(max(w, h) * .025)
                 box = (max(0, box[0] - pad), max(0, box[1] - pad), min(w, box[2] + pad), min(h, box[3] + pad))
                 flat = flat.crop(box)
@@ -952,14 +967,29 @@ def pg_flat(name):
                 fw, fh = flat.size
                 x0, y0, x1, y1 = PG_CROP[name]
                 flat = flat.crop((int(x0 * fw), int(y0 * fh), int(x1 * fw), int(y1 * fh)))
+            for x0, y0, x1, y1 in PG_ERASE.get(name, []):
+                fw, fh = flat.size
+                flat.paste(PAGE_RGB, (int(x0 * fw), int(y0 * fh), int(x1 * fw), int(y1 * fh)))
             flat.save(dst, "WEBP", quality=90, method=6)
         res = (out, True)
     _flat[name] = res
     return res
 
 
+def same_picture(a, b):
+    """Deux fichiers montrant la même photo (même cadrage, à la compression près)."""
+    if a == b:
+        return True
+    with Image.open(IMG / f"{a}.webp") as ia, Image.open(IMG / f"{b}.webp") as ib:
+        if ia.size != ib.size:
+            return False
+        sa, sb = (x.convert("L").resize((24, 14), Image.BOX) for x in (ia, ib))
+    return ImageStat.Stat(ImageChops.difference(sa, sb)).mean[0] < 4
+
+
 def render_pgallery(p, base):
-    blocks = p["blocks"]
+    # une image identique à la couverture du hero ferait doublon : elle est écartée
+    blocks = [b for b in p["blocks"] if not (b["t"] == "img" and same_picture(b["src"], p["cover"]))]
     out = []
     count = [0]
 
@@ -979,11 +1009,11 @@ def render_pgallery(p, base):
         <div class="frame" style="aspect-ratio:{w}/{h}">{img(src, alt, base)}</div>{cap}
       </figure>"""
 
-    def title(sec, tag="h2"):
+    def title(sec, tag="h2", poster=False):
         t = sec.get("title")
         if not t:
             return ""
-        xl = " g-title--xl" if len(t) <= 30 else ""
+        xl = " g-title--xl" if len(t) <= 30 else (" g-title--poster" if poster else "")
         return f'<{tag} class="g-title{xl}">{e(t)}</{tag}>'
 
     def body(sec, cols=None):
@@ -1006,7 +1036,7 @@ def render_pgallery(p, base):
         return f"""
     <section class="g-row g-text grid{wide}{extra}">
       <div class="g-text-label" data-reveal>{label(sec)}</div>
-      <div class="g-body" data-reveal style="--d:.08s">{title(sec)}{body({"text": sec.get("text", [])})}</div>{lst}
+      <div class="g-body" data-reveal style="--d:.08s">{title(sec, poster=True)}{body({"text": sec.get("text", [])})}</div>{lst}
     </section>"""
 
     def cover(sec, im):
@@ -1032,6 +1062,46 @@ def render_pgallery(p, base):
     def pair(sec, im, variant, flip):
         fl = " is-flip" if flip else ""
         cap = im.get("caption")
+        if variant == "plate":
+            n = count[0] + 1
+            text = "".join(f"<span>{e(x)}</span>" for x in sec.get("text", []))
+            foot = (f"""
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap">{text}</p>
+      </div>""" if text else "")
+            return f"""
+    <section class="g-row g-plate">
+      <div class="grid g-plate-head">
+        <div class="g-text-label" data-reveal>{label(sec)}</div>
+        <h2 class="g-plate-title" data-reveal style="--d:.08s">{e(sec['title'])}</h2>
+      </div>
+      <div class="grid">{fig(im['src'], im['alt'], 'g-plate-fig')}</div>{foot}
+    </section>"""
+        if variant == "stage":
+            src, alt = PG_STAGE[im["src"]]
+            src = pg_flat(src, tight=False)[0]  # le fond du rendu devient celui de la page : aucune couture
+            w, h = size(src)
+            num()
+            n = count[0] + 1
+            text = "".join(f"<span>{e(x)}</span>" for x in sec.get("text", []))
+            return f"""
+    <section class="g-row g-stage" aria-label="{e(sec['label'])}">
+      <div class="frame" style="--ar:{w}/{h}">{img(src, alt, base)}</div>
+      <div class="g-stage-head grid">
+        <div class="g-stage-copy">
+          <p class="g-label" data-reveal><span>{e(sec['label'])}</span></p>
+          <h2 class="g-stage-title" data-reveal style="--d:.08s">{e(sec['title'])}</h2>
+        </div>
+      </div>
+    </section>
+    <div class="g-row g-follow g-stage-after">
+      <div class="grid">{fig(im['src'], "Schéma en couches : l’utilisateur, Vision, l’application", 'g-plate-fig g-stage-fig')}</div>
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap">{text}</p>
+      </div>
+    </div>"""
         if variant == "stack":
             return f"""
     <section class="g-row g-stack">{header(sec, ' g-text--in')}
@@ -1066,7 +1136,7 @@ def render_pgallery(p, base):
             i += 2
             continue
         if t == "section" and nx and nx["t"] == "img" and nx.get("size", "wide") != "full":
-            if nx.get("size") == "narrow":
+            if nx.get("size") == "narrow" and nx["src"] not in PG_SCALE:
                 variant = "narrow"
             else:
                 variant = PG_SCALE.get(nx["src"]) or ("stack" if b.get("list") or wide_k % 2 else "side")
@@ -1105,10 +1175,15 @@ def render_pgallery(p, base):
         elif t == "img":
             cap = b.get("caption")
             if cap:
+                follow = " g-follow" if blocks[i - 1]["t"] == "img" or PG_SCALE.get(blocks[i - 1].get("src", "")) else ""
+                n = count[0] + 1
                 out.append(f"""
-    <div class="g-row g-img g-img--cap grid">
-      <p class="g-img-cap" data-reveal>{e(cap)}</p>
-      {fig(b['src'], b['alt'])}
+    <div class="g-row g-img g-img--cap{follow}">
+      <div class="grid">{fig(b['src'], b['alt'], 'g-plate-fig')}</div>
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap"><span>{e(cap)}</span></p>
+      </div>
     </div>""")
             else:
                 narrow = " g-img--narrow" if b.get("size") == "narrow" else ""
@@ -1142,9 +1217,14 @@ def render_pgallery(p, base):
       <div class="g-text-label">{label(b)}</div>{qs}
     </section>""")
         elif t == "link":
+            host = b["href"].split("//", 1)[-1].rstrip("/")
             out.append(f"""
-    <div class="g-row g-link grid">
-      <a class="btn" href="{b['href']}" target="_blank" rel="noopener"><span>{e(b['text'])}</span><span class="btn-ico">{ARROW_UP}</span></a>
+    <div class="g-row g-link">
+      <a class="g-cta grid" href="{b['href']}" target="_blank" rel="noopener" data-reveal>
+        <span class="g-cta-host">{e(host)}</span>
+        <span class="g-cta-text">{e(b['text'])}</span>
+        <span class="g-cta-disc" aria-hidden="true">{ARROW_UP}</span>
+      </a>
     </div>""")
         else:
             raise ValueError(t)
