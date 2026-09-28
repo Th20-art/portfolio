@@ -429,7 +429,7 @@ HERO_DIM = 0.95  # les visuels détourés sont légèrement assombris pour un fo
 
 # Visuel de chaque projet dans la grille de l'accueil
 CARDS = {
-    "vision": "vision-cover", "liawalk": "liawalk-cover", "pentagone": "pentagone-nfc",
+    "vision": "work-vision", "liawalk": "liawalk-cover", "pentagone": "work-pentagone",
     "site-ixcampus": "ixcampus-mobile", "lannion": "lannion-book", "design-fablab": "fablab-cover",
 }
 CARDS_VISIBLE = 4  # les suivants s'affichent avec « Voir tous les projets »
@@ -767,7 +767,7 @@ def render_work(base):
     <div class="work-foot">
       <button type="button" class="work-toggle" data-more-toggle aria-expanded="false" aria-controls="work-more" data-close-label="Voir moins de projets" hidden>
         <span class="work-plus" aria-hidden="true"></span>
-        <span class="work-all"><span data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
+        <span class="work-all"><span class="work-all-label" data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
       </button>
     </div>
   </section>"""
