@@ -12,7 +12,7 @@ import hashlib
 from html import escape
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageStat
 
 ROOT = Path(__file__).parent
 IMG = ROOT / "assets" / "img"
@@ -458,13 +458,27 @@ SERVICES = [
     "Claude Code", "GitHub", "Outils IA",
 ]
 
-# Placement des séries d'images : (colonne de départ, largeur en colonnes, décalage vertical px)
+# Mise en page du corps des pages projet (galerie) : uniquement des choix d'échelle et de placement.
+# Séries d'images sans texte : (colonne de départ, largeur en colonnes, décalage vertical px)
 SET_LAYOUT = {
     1: [(3, 8, 0)],
-    2: [(1, 7, 0), (10, 3, 0)],
-    3: [(1, 5, 0), (7, 3, 120), (10, 3, 0)],
-    4: [(1, 3, 0), (4, 3, 90), (7, 3, 0), (10, 3, 90)],
-    5: [(1, 5, 0), (7, 3, 110), (10, 3, 0), (2, 4, 0), (7, 5, 0)],
+    2: [(1, 7, 0), (9, 4, 220)],
+    3: [(1, 3, 0), (5, 3, 160), (8, 5, 0)],
+    4: [(1, 6, 0), (8, 4, 260), (3, 3, 0), (8, 3, 140)],
+    5: [(1, 7, 0), (9, 4, 240), (2, 3, 0), (6, 3, 150), (10, 3, 40)],
+}
+# Échelle imposée à certaines images (sinon déduite du bloc) :
+#   bleed = plein cadre avec le titre de la section précédente posé dessus
+#   side / stack = image large à côté du texte ou pleine largeur sous le titre
+PG_SCALE = {
+    "vision-constat": "bleed",
+    "vision-benchmark": "side",
+    "vision-poc": "stack",
+    "vision-layers": "side",
+}
+# Recadrage (fractions x0, y0, x1, y1) de certains dérivés aplatis
+PG_CROP = {
+    "vision-userflow": (0, 0, 1, .54),
 }
 STUDIO_LAYOUT = [(1, 5, 0), (8, 4, 140), (3, 4, 0), (8, 5, 80)]
 
@@ -827,6 +841,52 @@ def render_pintro(p, base):
   </section>"""
 
 
+PAGE_RGB = (243, 243, 242)
+_flat = {}
+
+
+def pg_flat(name):
+    """Planche sur fond clair uni : dérivé 'pgallery-*' dont le fond devient celui de la page,
+    pour que le visuel flotte sans cartouche. Renvoie (nom à utiliser, aplati ?)."""
+    if name in _flat:
+        return _flat[name]
+    res = (name, False)
+    with Image.open(IMG / f"{name}.webp") as im:
+        rgb = im.convert("RGB")
+    w, h = rgb.size
+    k = max(8, int(min(w, h) * .03))
+    stats = [ImageStat.Stat(rgb.crop(b)) for b in
+             [(0, 0, k, k), (w - k, 0, w, k), (0, h - k, k, h), (w - k, h - k, w, h)]]
+    means = [s.mean for s in stats]
+    sd = max(max(s.stddev) for s in stats)
+    if all(min(m) >= 222 for m in means) and sd < 8 and not all(min(m) >= 254 for m in means):
+        out = f"pgallery-{name}"
+        dst = IMG / f"{out}.webp"
+        if not dst.exists():
+            knee = 14 if sd > .5 else 3
+            bands = []
+            for c, band in enumerate(rgb.split()):
+                t = max(1, min(m[c] for m in means) - knee)
+                pc = PAGE_RGB[c]
+                bands.append(band.point(lambda v, t=t, pc=pc: min(pc, round(v * pc / t))))
+            flat = Image.merge("RGB", bands)
+            # recadrage serré sur le contenu : la planche occupe toute sa colonne
+            diff = ImageChops.difference(flat, Image.new("RGB", flat.size, PAGE_RGB)).convert("L")
+            box = diff.point(lambda v: 255 if v > 18 else 0).getbbox()
+            if box:
+                pad = int(max(w, h) * .025)
+                box = (max(0, box[0] - pad), max(0, box[1] - pad), min(w, box[2] + pad), min(h, box[3] + pad))
+                flat = flat.crop(box)
+            if name in PG_CROP:
+                fw, fh = flat.size
+                x0, y0, x1, y1 = PG_CROP[name]
+                flat = flat.crop((int(x0 * fw), int(y0 * fh), int(x1 * fw), int(y1 * fh)))
+            flat.save(dst, "WEBP", quality=90, method=6)
+        res = (out, True)
+    _flat[name] = res
+    return res
+
+
 def render_pgallery(p, base):
     blocks = p["blocks"]
     out = []
@@ -836,72 +896,165 @@ def render_pgallery(p, base):
         count[0] += 1
         return count[0]
 
-    def pair(sec, im, flip):
-        narrow = " g-pair--narrow" if im.get("size") == "narrow" else ""
-        fl = " is-flip" if flip else ""
-        return f"""
-    <div class="g-row g-pair grid{narrow}{fl}">
-      {figure(im['src'], im['alt'], base, num(), im.get('caption'))}
-      <div class="g-copy" data-reveal style="--d:.12s"><p class="g-label">{e(sec['label'])}</p>{section_copy(sec)}</div>
-    </div>"""
+    def fig(name, alt, cls="", style="", caption=None):
+        src, is_flat = pg_flat(name)
+        w, h = size(src)
+        n = num()
+        klass = "g-fig" + (" is-flat" if is_flat else "") + (f" {cls}" if cls else "")
+        st = f' style="{style}"' if style else ""
+        cap = (f'\n        <figcaption class="g-cap"><span>{e(caption)}</span><span aria-hidden="true">{n:02d}</span></figcaption>'
+               if caption else f'\n        <span class="g-n-tag" aria-hidden="true">{n:02d}</span>')
+        return f"""<figure class="{klass}" data-reveal{st}>
+        <div class="frame" style="aspect-ratio:{w}/{h}">{img(src, alt, base)}</div>{cap}
+      </figure>"""
 
-    def full(im, link):
-        w, h = size(im["src"])
-        t = tone(im["src"], (.2, .3, .8, .7))
-        dark = ' data-tone="dark"' if t == "dark" else ""
-        text = ""
-        if link:
-            text = f'<a href="{link["href"]}" target="_blank" rel="noopener">{e(link["text"])} {ARROW_UP}</a>'
-        elif im.get("caption"):
-            text = e(im["caption"])
-        side = " g-full-text--side" if link else ""
-        cap = (f'\n      <figcaption class="g-full-text{side}"><span data-reveal>{text}</span></figcaption>'
-               if text else "")
+    def title(sec, tag="h2"):
+        t = sec.get("title")
+        if not t:
+            return ""
+        xl = " g-title--xl" if len(t) <= 30 else ""
+        return f'<{tag} class="g-title{xl}">{e(t)}</{tag}>'
+
+    def body(sec, cols=None):
+        o = "".join(f'<p class="g-p">{e(x)}</p>' for x in sec.get("text", []))
+        items = sec.get("list") or []
+        if items:
+            c = cols or min(len(items), 5 if len(items) > 3 else 3)
+            o += f'<ol class="g-list" style="--n:{c}">' + "".join(
+                f'<li><span class="g-n" aria-hidden="true">{k:02d}</span><h3>{e(a)}</h3><p>{e(b)}</p></li>'
+                for k, (a, b) in enumerate(items, 1)) + "</ol>"
+        return o
+
+    def label(sec):
+        return f'<p class="g-label"><span>{e(sec["label"])}</span></p>'
+
+    def header(sec, extra=""):
+        wide = " g-text--wide" if len(sec.get("list") or []) > 3 else ""
+        lst = (f'\n      <div class="g-text-list" data-reveal style="--d:.14s">{body({"list": sec["list"]})}</div>'
+               if sec.get("list") else "")
+        return f"""
+    <section class="g-row g-text grid{wide}{extra}">
+      <div class="g-text-label" data-reveal>{label(sec)}</div>
+      <div class="g-body" data-reveal style="--d:.08s">{title(sec)}{body({"text": sec.get("text", [])})}</div>{lst}
+    </section>"""
+
+    def cover(sec, im):
+        src = im["src"]
+        w, h = size(src)
+        dark = tone(src, (.15, .25, .85, .75)) == "dark"
+        after = ""
+        if sec.get("list") or sec.get("text"):
+            after = f"""
+    <div class="g-row g-after grid">
+      <div class="g-body" data-reveal>{body(sec)}</div>
+    </div>"""
         num()
         return f"""
-    <figure class="g-row g-full g-full--{t}"{dark}>
-      <div class="frame" style="--ar:{w}/{h}">{img(im['src'], im['alt'], base)}</div>{cap}
-    </figure>"""
+    <section class="g-row g-cover{' is-dark' if dark else ''}"{' data-tone="dark"' if dark else ''} aria-label="{e(sec['label'])}">
+      <div class="frame" style="--ar:{w}/{h}">{img(src, im['alt'], base)}</div>
+      <div class="g-cover-head">
+        <p class="g-label" data-reveal><span>{e(sec['label'])}</span></p>
+        <h2 class="g-cover-title" data-reveal style="--d:.1s">{e(sec['title'])}</h2>
+      </div>
+    </section>{after}"""
+
+    def pair(sec, im, variant, flip):
+        fl = " is-flip" if flip else ""
+        cap = im.get("caption")
+        if variant == "stack":
+            return f"""
+    <section class="g-row g-stack">{header(sec, ' g-text--in')}
+      <div class="grid">{fig(im['src'], im['alt'], caption=cap)}</div>
+    </section>"""
+        return f"""
+    <section class="g-row g-pair g-pair--{variant} grid{fl}">
+      {fig(im['src'], im['alt'], caption=cap)}
+      <div class="g-copy" data-reveal style="--d:.1s">{label(sec)}{title(sec)}{body(sec, 1)}</div>
+    </section>"""
+
+    def composite(sec, items):
+        (s1, a1), (s2, a2) = items
+        w, h = size(pg_flat(s2)[0])
+        tall = " is-tall" if h > w * 1.3 else ""
+        return f"""
+    <section class="g-row g-duo grid{tall}">
+      <div class="g-copy" data-reveal>{label(sec)}{title(sec)}{body(sec, 1)}</div>
+      {fig(s1, a1, 'g-duo-a')}
+      {fig(s2, a2, 'g-duo-b', '--d:.12s')}
+    </section>"""
 
     flip = False
+    wide_k = 0
     i = 0
     while i < len(blocks):
         b = blocks[i]
         nx = blocks[i + 1] if i + 1 < len(blocks) else None
         t = b["t"]
+        if t == "section" and nx and nx["t"] == "img" and PG_SCALE.get(nx["src"]) == "bleed":
+            out.append(cover(b, nx))
+            i += 2
+            continue
         if t == "section" and nx and nx["t"] == "img" and nx.get("size", "wide") != "full":
-            out.append(pair(b, nx, flip))
-            flip = not flip
+            if nx.get("size") == "narrow":
+                variant = "narrow"
+            else:
+                variant = PG_SCALE.get(nx["src"]) or ("stack" if b.get("list") or wide_k % 2 else "side")
+                wide_k += 1
+            out.append(pair(b, nx, variant, flip))
+            if variant != "stack":
+                flip = not flip
+            i += 2
+            continue
+        if t == "section" and nx and nx["t"] == "imgs" and len(nx["items"]) == 2:
+            out.append(composite(b, nx["items"]))
             i += 2
             continue
         if t == "img" and b.get("size") == "full":
             link = nx if nx and nx["t"] == "link" else None
-            out.append(full(b, link))
+            src = b["src"]
+            w, h = size(src)
+            tn = tone(src, (.2, .3, .8, .7))
+            text = ""
+            if link:
+                text = f'<a href="{link["href"]}" target="_blank" rel="noopener">{e(link["text"])} {ARROW_UP}</a>'
+            elif b.get("caption"):
+                text = e(b["caption"])
+            side = " g-full-text--side" if link else ""
+            cap = (f'\n      <figcaption class="g-full-text{side}"><span data-reveal>{text}</span></figcaption>'
+                   if text else "")
+            num()
+            out.append(f"""
+    <figure class="g-row g-full g-full--{tn}"{' data-tone="dark"' if tn == 'dark' else ''}>
+      <div class="frame" style="--ar:{w}/{h}">{img(src, b['alt'], base)}</div>{cap}
+    </figure>""")
             i += 2 if link else 1
             continue
         if t == "section":
-            out.append(f"""
-    <section class="g-row g-text grid">
-      <p class="g-label" data-reveal>{e(b['label'])}</p>
-      <div class="g-body" data-reveal style="--d:.1s">{section_copy(b)}</div>
-    </section>""")
+            out.append(header(b))
         elif t == "img":
-            narrow = " g-img--narrow" if b.get("size") == "narrow" else ""
-            out.append(f"""
-    <div class="g-row g-img grid{narrow}{' is-flip' if flip else ''}">
-      {figure(b['src'], b['alt'], base, num(), b.get('caption'))}
+            cap = b.get("caption")
+            if cap:
+                out.append(f"""
+    <div class="g-row g-img g-img--cap grid">
+      <p class="g-img-cap" data-reveal>{e(cap)}</p>
+      {fig(b['src'], b['alt'])}
     </div>""")
-            flip = not flip
+            else:
+                narrow = " g-img--narrow" if b.get("size") == "narrow" else ""
+                out.append(f"""
+    <div class="g-row g-img grid{narrow}{' is-flip' if flip else ''}">
+      {fig(b['src'], b['alt'])}
+    </div>""")
+                flip = not flip
         elif t == "imgs":
             items = b["items"]
             layout = SET_LAYOUT.get(len(items)) or [(1 + (k % 3) * 4, 4, 0) for k in range(len(items))]
             figs = ""
             for k, ((src, alt), (c, s, o)) in enumerate(zip(items, layout)):
                 w, h = size(src)
-                if h > w * 1.25 and s > 4:
-                    s = 3
-                figs += "\n      " + figure(src, alt, base, num(), None, "",
-                                           f"--c:{c};--s:{s};--o:{o}px;--d:{k * 0.06:.2f}s")
+                if h > w * 1.6 and s > 4:
+                    s = 4
+                figs += "\n      " + fig(src, alt, "", f"--c:{c};--s:{s};--o:{o}px;--d:{k * 0.06:.2f}s")
             out.append(f"""
     <div class="g-row g-set grid">{figs}
     </div>""")
@@ -910,12 +1063,12 @@ def render_pgallery(p, base):
             for k, (src, q) in enumerate(b["items"]):
                 qs += f"""
       <div class="g-quote{' is-flip' if k % 2 else ''}">
-        {figure(src, 'Persona', base, num())}
-        <blockquote data-reveal style="--d:.1s">« {e(q)} »</blockquote>
+        {fig(src, 'Persona')}
+        <blockquote data-reveal style="--d:.1s"><p>« {e(q)} »</p></blockquote>
       </div>"""
             out.append(f"""
     <section class="g-row g-quotes grid" aria-label="{e(b['label'])}">
-      <p class="g-label">{e(b['label'])}</p>{qs}
+      <div class="g-text-label">{label(b)}</div>{qs}
     </section>""")
         elif t == "link":
             out.append(f"""
