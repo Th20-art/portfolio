@@ -608,14 +608,25 @@ def render_nav(base, current):
   </header>"""
 
 
-def render_next(href, lines, sub):
-    title = "".join(f'<span class="line"><span>{e(x)}</span></span>' for x in lines)
+def render_next(href, lines, sub, base="", pic=None, here="Accueil", there="À propos"):
+    """Appel « page suivante » : titre géant + vignette, CTA contrasté, barre de progression pleine largeur."""
+    thumb = ""
+    if pic:
+        thumb = f'<span class="next-pic" aria-hidden="true">{img(pic[0], "", base)}</span>'
+    rows = ""
+    for i, x in enumerate(lines):
+        extra = thumb if i == 0 else ""
+        rows += f'<span class="line"><span>{e(x)}{extra}</span></span>'
     return f"""
   <section class="next" data-chunk="next" aria-label="Page suivante">
-    <p class="next-label">Page suivante</p>
-    <a class="next-link" href="{href}" data-reveal>
-      <span class="next-title">{title}</span>
-      <span class="next-sub">{e(sub)} {ARROW}</span>
+    <p class="next-label"><span>Page suivante</span></p>
+    <a class="next-link" href="{href}">
+      <span class="next-title" data-reveal>{rows}</span>
+      <span class="next-cta" data-reveal style="--d:.12s"><span class="next-cta-txt">{e(sub)}</span><span class="next-cta-ico">{ARROW}</span></span>
+      <span class="next-bar" aria-hidden="true">
+        <span class="next-seg next-seg--here"><span class="next-seg-lab"><b>Vous êtes ici</b>{e(here)}</span><i class="next-track"><i class="next-fill"></i></i></span>
+        <span class="next-seg next-seg--there"><span class="next-seg-lab"><b>Suivant</b>{e(there)} {ARROW}</span><i class="next-track"><i class="next-fill"></i></i></span>
+      </span>
     </a>
   </section>"""
 
@@ -777,7 +788,7 @@ def build_index():
                 ["hero", "intro", "work", "clients", "services", "next", "footer"])
     html += f"""
 <body class="page-home" id="top">
-<main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours")}
+<main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours", base, pic=("portrait",), here="Accueil", there="À propos")}
 </main>{render_footer(base)}{scripts(base, ["hero", "work", "services"])}"""
     (ROOT / "index.html").write_text(html, encoding="utf-8")
 
@@ -1067,7 +1078,7 @@ def build_about():
     html = head(f"À propos · {SITE['name']}", SITE["bio"], base, ["about", "next", "footer"], og="portrait")
     html += f"""
 <body class="page-about" id="top">
-<main id="main">{render_ahero(base)}{render_abio(base)}{render_acv(base)}{render_askills(base)}{render_astudio(base)}{render_next("index.html#projets", ["Projets", "sélectionnés"], "Voir les projets")}
+<main id="main">{render_ahero(base)}{render_abio(base)}{render_acv(base)}{render_askills(base)}{render_astudio(base)}{render_next("index.html#projets", ["Projets", "sélectionnés"], "Voir les projets", base, pic=("thumb-vision",), here="À propos", there="Projets")}
 </main>{render_footer(base)}{scripts(base, [])}"""
     (ROOT / "a-propos.html").write_text(html, encoding="utf-8")
 
