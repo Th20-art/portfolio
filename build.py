@@ -785,19 +785,47 @@ def build_index():
 # ---------------------------------------------------------------------------
 # Pages projet : un rendu par section
 # ---------------------------------------------------------------------------
+# Cadrage du hero projet : (zoom, origine du zoom). Le sujet est poussé à droite et
+# déborde du cadre, pour laisser la gauche au titre et créer une tension.
+PHERO_CROP = {
+    "vision": (1.6, "9% 64%"),
+    "liawalk": (1.18, "78% 30%"),
+    "site-ixcampus": (1.6, "0% 0%"),
+    "pentagone": (1.55, "96% 30%"),
+    "lannion": (1.12, "70% 45%"),
+    "design-fablab": (2.1, "80% 30%"),
+}
+
+
+def phero_lines(title):
+    """Coupe les titres longs en deux lignes équilibrées."""
+    words = title.split()
+    if len(title) <= 10 or len(words) < 2:
+        return [title]
+    best = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
+    return [" ".join(words[:best]), " ".join(words[best:])]
+
+
 def render_phero(i, p, base):
     cover = p["cover"]
     t = tone(cover)
     dark = ' data-tone="dark"' if t == "dark" else ""
     sub = p.get("subtitle", p["context"])
+    z, o = PHERO_CROP.get(p["slug"], (1, "50% 50%"))
+    lines = phero_lines(p["title"])
+    longest = max(len(x) for x in lines)
+    title = "".join(f'<span><span style="--d:{.08 + k * .09:.2f}s">{e(x)}</span></span>' for k, x in enumerate(lines))
     return f"""
-  <section class="phero phero--{t}" data-chunk="phero"{dark} aria-labelledby="p-title">
+  <section class="phero phero--{t}" data-chunk="phero"{dark} aria-labelledby="p-title" style="--z:{z};--ox:{o.split()[0]};--oy:{o.split()[1]};--n:{longest}">
     <a class="skip" href="#pintro">Aller au contenu</a>
     {render_nav(base, "work")}
     <div class="phero-media">{img(cover, f"{p['title']}, image de couverture", base, eager=True)}</div>
-    <h1 class="phero-title" id="p-title"><span><span>{e(p['title'])}</span></span></h1>
-    <p class="phero-year">{p['year']}</p>
-    <p class="phero-text">{e(p['summary'])}</p>
+    <div class="phero-head">
+      <p class="phero-kicker"><span>Projet {i + 1:02d}</span><span>{p['year']}</span></p>
+      <p class="phero-tags">{e(p['tags'])}</p>
+      <p class="phero-text">{e(p['summary'])}</p>
+    </div>
+    <h1 class="phero-title phero-title--{len(lines)}" id="p-title">{title}</h1>
     <div class="phero-bar">
       <span>{e(p['title'])} · {e(sub)}</span>
       <a href="#pintro"><i aria-hidden="true"></i>Défiler</a>
