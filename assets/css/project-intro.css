@@ -1,24 +1,52 @@
 /* ==========================================================================
-   Projet · Intro : métadonnées à gauche, chapeau à droite
+   Projet · Intro : fiche technique à gauche, chapeau à droite.
+   Le chapeau domine (graisse forte, encre noire), la fiche reste un
+   petit tableau net aligné sur la première ligne du chapeau.
    ========================================================================== */
 .pintro {
-  padding: 48px var(--g) 110px;
+  padding: 76px var(--g) 92px;
   align-items: start;
+  row-gap: 0;
 }
-.pintro-meta { grid-column: 1 / span 3; display: grid; gap: 14px; }
-.pintro-meta dt { font-size: 9px; font-weight: 500; color: var(--mute); line-height: 1.3; }
-.pintro-meta dd { font-size: 10px; font-weight: 500; line-height: 1.4; }
+
+/* Fiche : libellé / valeur sur une ligne, filets fins entre les lignes */
+.pintro-meta {
+  grid-column: 1 / span 3;
+  display: grid;
+  border-top: 1px solid var(--ink);
+  margin-top: .42em;              /* cale le filet sur la hauteur de capitale du chapeau */
+  font-size: var(--fs-xs);
+}
+.pintro-meta > div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: baseline;
+  padding: 8px 0 9px;
+  border-bottom: 1px solid var(--line);
+}
+.pintro-meta dt { font-size: 11px; font-weight: 500; color: var(--mute); line-height: 1.3; }
+.pintro-meta dd { font-size: 11px; font-weight: 550; color: var(--ink); line-height: 1.3; }
 .pintro-meta a { display: inline-flex; align-items: center; gap: 4px; }
 .pintro-meta .arrow { width: 9px; height: 9px; }
+
+/* Chapeau : noir, gras, serré ; il remplit la hauteur de la fiche */
 .pintro-lead {
   grid-column: 5 / span 8;
-  font-size: var(--fs-lead); line-height: 1.2; font-weight: 600; letter-spacing: -.025em;
+  font-size: clamp(24px, 2.72vw, 46px);
+  line-height: 1.08;
+  font-weight: 700;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -.028em;
+  color: #000;
   text-wrap: pretty;
+  hanging-punctuation: first;
 }
 
 @media (max-width: 800px) {
-  .pintro { padding: 40px var(--g) 80px; }
+  .pintro { padding: 44px var(--g) 64px; }
   .pintro-meta, .pintro-lead { grid-column: 1 / -1; }
-  .pintro-lead { margin-top: 36px; grid-row: 1; }
+  .pintro-lead { grid-row: 1; font-size: clamp(23px, 6.4vw, 30px); line-height: 1.1; }
   .pintro-meta { grid-row: 2; margin-top: 36px; }
+  .pintro-meta > div { grid-template-columns: 88px minmax(0, 1fr); }
 }
