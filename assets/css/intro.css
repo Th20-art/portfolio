@@ -1,0 +1,24 @@
+/* ==========================================================================
+   Accueil · Intro : grande déclaration + texte court et bouton
+   ========================================================================== */
+.intro {
+  padding: 84px var(--g) 170px;
+  align-items: start;
+}
+.intro-title {
+  grid-column: 1 / span 6;
+  font-size: var(--fs-h2); line-height: 1.04; font-weight: 600; letter-spacing: -.035em;
+}
+.intro-title .line { display: block; }
+.intro-side {
+  grid-column: 8 / span 3;
+  margin-top: clamp(80px, 8.4vw, 130px);
+  max-width: 300px;
+}
+.intro-side p { font-size: var(--fs-xs); line-height: 1.5; font-weight: 500; margin-bottom: 18px; }
+
+@media (max-width: 800px) {
+  .intro { padding: 90px var(--g) 100px; }
+  .intro-title, .intro-side { grid-column: 1 / -1; }
+  .intro-side { margin-top: 40px; }
+}

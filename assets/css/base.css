@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Base partagée : tokens, reset, typographie, grille, boutons, révélations.
+   Chaque section a son propre fichier (hero.css, work.css, …).
+   ========================================================================== */
+:root {
+  --bg: #f3f3f2;
+  --bg-2: #e9e9e8;
+  --ink: #0d0d0d;
+  --ink-2: #4a4a4a;
+  --mute: #8f8f8f;
+  --faint: #c9c9c9;
+  --line: rgba(13, 13, 13, .12);
+  --black: #000;
+  --dark: #0e0e0e;
+  --tile: #121212;
+  --white: #fff;
+
+  --g: 30px;          /* gouttière latérale */
+  --gap: 16px;        /* gouttière de grille */
+  --cols: 12;
+
+  --f: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --fs-xs: 11px;
+  --fs-s: 13px;
+  --fs-m: 16px;
+  --fs-lead: clamp(21px, 1.9vw, 30px);
+  --fs-h2: clamp(34px, 3.4vw, 54px);
+  --fs-display: clamp(44px, 4.9vw, 76px);
+
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  --ease-io: cubic-bezier(.65, 0, .35, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f);
+  font-size: var(--fs-s);
+  line-height: 1.45;
+  font-weight: 450;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+img, svg, video { display: block; max-width: 100%; }
+img { height: auto; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote { margin: 0; }
+ul, ol { list-style: none; padding: 0; }
+::selection { background: var(--ink); color: var(--bg); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }
+
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip {
+  position: fixed; left: 12px; top: 12px; z-index: 100; padding: 8px 12px;
+  background: var(--ink); color: var(--bg); font-size: var(--fs-xs); border-radius: 4px;
+  transform: translateY(-160%); transition: transform .3s var(--ease);
+}
+.skip:focus-visible { transform: none; }
+
+/* Grille 12 colonnes */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  column-gap: var(--gap);
+}
+.wrap { padding-inline: var(--g); }
+
+/* Petites étiquettes */
+.tiny { font-size: var(--fs-xs); line-height: 1.35; font-weight: 500; letter-spacing: 0; }
+
+/* Lien souligné qui se redessine au survol */
+.ulink {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1px no-repeat;
+  transition: background-size .5s var(--ease);
+  padding-bottom: 1px;
+}
+.ulink:hover { background-size: 0 1px; background-position: 100% 100%; }
+
+/* Bouton noir + pastille flèche */
+.btn {
+  display: inline-flex; align-items: stretch; gap: 2px;
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1;
+}
+.btn > span {
+  display: inline-flex; align-items: center; background: var(--ink); color: var(--bg);
+  border-radius: 3px; padding: 9px 12px; transition: background-color .3s, transform .5s var(--ease);
+}
+.btn .btn-ico { padding: 9px 8px; }
+.btn .btn-ico svg { width: 11px; height: 11px; transition: transform .5s var(--ease); }
+.btn:hover .btn-ico svg { transform: translateX(2px) rotate(-45deg); }
+.btn:hover > span { background: #2a2a2a; }
+
+.arrow { width: 1em; height: 1em; display: inline-block; vertical-align: -.12em; }
+
+/* Image cadrée : fond neutre pendant le chargement */
+.frame { position: relative; overflow: hidden; background: var(--bg-2); }
+.frame img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Révélations au scroll : l'état final est toujours entièrement visible */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition: opacity .9s var(--ease) var(--d, 0s), transform 1.2s var(--ease) var(--d, 0s);
+}
+.js [data-reveal].is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+  .js [data-reveal] { opacity: 1; transform: none; }
+}
+
+@media (max-width: 800px) {
+  :root { --g: 16px; --gap: 10px; }
+  body { font-size: 14px; }
+}

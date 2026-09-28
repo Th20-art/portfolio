@@ -1,15 +1,18 @@
 """
 Générateur du portfolio de Théo Petitimbert.
 
-Tout le contenu (projets, textes, images) est dans ce fichier.
+Tout le contenu (projets, textes, CV, images) est dans ce fichier.
 Modifier puis lancer :  python build.py
-Le site statique est écrit à la racine (index.html + projets/*.html).
+Le site statique est écrit à la racine (index.html, a-propos.html, projets/*.html).
+
+Chaque section de page a sa fonction render_* ici, sa feuille assets/css/<section>.css
+et, si besoin, son script assets/js/<section>.js ; l'élément racine porte data-chunk.
 """
 import hashlib
 from html import escape
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageStat
 
 ROOT = Path(__file__).parent
 IMG = ROOT / "assets" / "img"
@@ -401,13 +404,114 @@ PROJECTS = [
     },
 ]
 
-FILTERS = [("all", "Tout"), ("digital", "Digital"), ("produit", "Produit"), ("recherche", "Recherche")]
+# ---------------------------------------------------------------------------
+# Mise en page : choix d'images, d'ordre et de libellés tirés du contenu
+# ci-dessus (aucune information nouvelle).
+# ---------------------------------------------------------------------------
+INTRO_LINES = ["Je transforme", "des sujets complexes", "en expériences utiles", "et désirables."]
+
+# Carrousel du hero : projet, visuel plein cadre et recadrage
+HERO_SLIDES = [
+    # fit : visuel détouré posé sur le fond (cx = position horizontale dans l'écran, fx/fy = point focal,
+    # h = hauteur) ; sinon plein cadre. k = corps du titre en vw. line = phrase courte reprise du projet.
+    {"slug": "vision", "img": "hero-vision-screens", "alt": "Trois écrans de l’application Vision",
+     "fit": {"h": "90%", "fx": "51%", "fy": "52%", "cx": "64%"}, "k": 15,
+     "line": "Une application qui intercepte les tentations d’achat et aide à formuler des objectifs."},
+    {"slug": "liawalk", "img": "liawalk-float", "alt": "Rendu 3D du dispositif mobile LIAWALK",
+     "pos": "50% 62%", "zoom": 1.16, "origin": "62% 64%", "k": 10.4,
+     "line": "Des doubles numériques nés du vécu professionnel des travailleurs sociaux."},
+    {"slug": "pentagone", "img": "pentagone-cover", "alt": "Module pentagonal en liège, vue de dessus",
+     "fit": {"h": "80%", "fx": "73%", "fy": "35%", "cx": "64%"}, "k": 9.6,
+     "line": "Un banc augmenté en mobilier urbain, point d’entrée vers l’engagement citoyen local."},
+]
+
+HERO_DIM = 0.95  # les visuels détourés sont légèrement assombris pour un fond gris
+
+# Visuel de chaque projet dans la grille de l'accueil
+CARDS = {
+    "vision": "work-g-vision", "liawalk": "work-g-liawalk", "pentagone": "work-g-pentagone",
+    "site-ixcampus": "work-g-ixcampus", "lannion": "work-g-lannion", "design-fablab": "work-g-fablab",
+}
+CARDS_VISIBLE = 4  # les suivants s'affichent avec « Voir tous les projets »
+
+# Organisations citées dans le CV et les projets : (nom, relation, voix typographique, composition).
+# Aucun logo n'est redessiné ni imité : chaque nom réel reçoit sa propre voix typographique
+# (famille, casse, construction), puis toutes les voix sont ramenées à une même masse optique
+# (surface d'encre mesurée, cf. assets/css/clients.css). Composition :
+# None = le nom tel quel ; ("stack", haut, bas) = deux étages, le bas justifié lettre à lettre ;
+# ("side", principal, "l1|l2") = principal + complément à droite ; ("split", a, b) = deux graisses ;
+# ("caret", nom) = nom suivi d'un curseur de saisie.
+CLIENTS = [
+    ("iXcampus", "Alternance · 2024 → 2026", "ixcampus", None),
+    ("Inria", "Partenaire · LIAWALK", "inria", None),
+    ("JCDecaux", "Partenaire · Pentagone", "jcdecaux", None),
+    ("SNCF Réseau", "Stage · 2023", "sncf", ("stack", "SNCF", "Réseau")),
+    ("CY école de design", "Formation · Master 2", "cy", ("side", "CY", "école de|design")),
+    ("HOWEST", "Erasmus · 2024", "howest", None),
+    ("TrembLess", "Startup · Design Studio", "trembless", None),
+    ("VestaClim", "Startup · Design Studio", "vestaclim", ("split", "Vesta", "Clim")),
+    ("Iroony", "Startup · Design Studio", "iroony", None),
+    ("PiPop", "Startup · Design Studio", "pipop", None),
+    ("Advitam", "Identité · Site iXcampus", "advitam", None),
+    ("Intuiti", "Développement · Site iXcampus", "intuiti", ("caret", "intuiti")),
+]
+MARQUEE = ["Partenaires", "Clients", "Collaborations"]
+
+
+# Savoir-faire, disciplines et outils, repris du CV, des métadonnées projet et des légendes du studio
+SERVICES = [
+    "Design global", *SKILLS["Savoir-faire"],
+    "Enquête de terrain", "Analyse qualitative", "Design thinking", "Webdesign", "Identité graphique",
+    "Charte graphique", "Stratégie de communication", "Graphisme", "Photographie", "Maquettage",
+    "Modélisation 3D", "Prototypage physique", "Découpe laser", "Mobilier urbain",
+    "Figma", "Sketch", "Suite Adobe", "After Effects", "Rhino 8", "Twinmotion", "Vizcom",
+    "Claude Code", "GitHub", "Outils IA",
+]
+
+# Mise en page du corps des pages projet (galerie) : uniquement des choix d'échelle et de placement.
+# Séries d'images sans texte : (colonne de départ, largeur en colonnes, décalage vertical px)
+SET_LAYOUT = {
+    1: [(3, 8, 0)],
+    2: [(1, 7, 0), (9, 4, 220)],
+    3: [(1, 3, 0), (5, 3, 160), (8, 5, 0)],
+    4: [(1, 6, 0), (8, 4, 260), (3, 3, 0), (8, 3, 140)],
+    5: [(1, 7, 0), (9, 4, 240), (2, 3, 0), (6, 3, 150), (10, 3, 40)],
+}
+# Échelle imposée à certaines images (sinon déduite du bloc) :
+#   bleed = plein cadre avec le titre de la section précédente posé dessus
+#   side / stack = image large à côté du texte ou pleine largeur sous le titre
+#   plate = titre d'affiche au-dessus, visuel sur toute la grille, texte relégué en légende
+PG_SCALE = {
+    "vision-constat": "bleed",
+    "vision-benchmark": "plate",
+    "vision-poc": "plate",
+    "vision-layers": "stage",
+    "vision-gamification": "side",
+}
+# Recadrage (fractions x0, y0, x1, y1) de certains dérivés aplatis
+PG_CROP = {
+    "vision-userflow": (0, 0, 1, .54),
+    "vision-layers": (.57, .27, .935, .63),  # le schéma en couches seul : les écrans passent en plein cadre
+}
+# Zones effacées (fond de page) d'un dérivé aplati
+PG_ERASE = {}
+# stage = plein cadre d'un rendu du projet, titre posé à gauche, puis le schéma du bloc en second plan
+PG_STAGE = {
+    "vision-layers": ("vision-screens", "Trois écrans de l’application Vision"),
+}
+# Schémas dont les gris sont densifiés (traits et textes plus lisibles à petite échelle)
+PG_INK = {"vision-benchmark": 1.8, "vision-poc": 1.7, "vision-smart": 2.0, "vision-userflow": 1.9}
+STUDIO_LAYOUT = [(1, 5, 0), (8, 4, 140), (3, 4, 0), (8, 5, 80)]
+
+FONTS = ("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@"
+         "0,75..100,400..700;1,75..100,400..700&display=swap")
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 e = escape
 _sizes = {}
+_tones = {}
 
 
 def ver(path):
@@ -422,26 +526,56 @@ def size(name):
     return _sizes[name]
 
 
-def img(name, alt, base, cls="", eager=False, extra=""):
+def tone(name, box=(0, .35, .6, 1)):
+    """'dark' si la zone (x0, y0, x1, y1 en fractions) de l'image est sombre :
+    le texte posé dessus passe alors en blanc."""
+    key = (name, box)
+    if key not in _tones:
+        with Image.open(IMG / f"{name}.webp") as im:
+            w, h = im.size
+            zone = im.convert("L").crop((int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h)))
+            _tones[key] = "dark" if zone.resize((1, 1), Image.BOX).getpixel((0, 0)) < 150 else "light"
+    return _tones[key]
+
+
+def edge_color(name, k=1.0):
+    """Couleur moyenne du bord de l'image (fond studio), éventuellement assombrie."""
+    with Image.open(IMG / f"{name}.webp") as im:
+        rgb = im.convert("RGB")
+        w, h = rgb.size
+        b = max(4, w // 50)
+        strips = [rgb.crop((0, 0, w, b)), rgb.crop((0, h - b, w, h)), rgb.crop((0, 0, b, h)), rgb.crop((w - b, 0, w, h))]
+        cols = [s.resize((1, 1), Image.BOX).getpixel((0, 0)) for s in strips]
+    return "rgb({})".format(",".join(str(round(sum(c[i] for c in cols) / 4 * k)) for i in range(3)))
+
+
+def img(name, alt, base, cls="", eager=False):
     w, h = size(name)
     load = 'fetchpriority="high"' if eager else 'loading="lazy"'
+    klass = f' class="{cls}"' if cls else ""
     return (f'<img src="{base}assets/img/{name}.webp" alt="{e(alt)}" width="{w}" height="{h}" '
-            f'{load} decoding="async"{f" class={chr(34)}{cls}{chr(34)}" if cls else ""}{extra}>')
+            f'{load} decoding="async"{klass}>')
 
 
-ARROW = ('<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" '
-         'fill="none" stroke="currentColor" stroke-width="1.5"/></svg>')
-ARROW_UP = ('<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9" '
-            'fill="none" stroke="currentColor" stroke-width="1.5"/></svg>')
+def svg(d, cls="arrow", w=1.5):
+    return (f'<svg class="{cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="{d}" fill="none" '
+            f'stroke="currentColor" stroke-width="{w}"/></svg>')
 
 
-def roll(text):
-    """Texte qui 'roule' au survol (deux copies empilées)."""
-    t = e(text)
-    return f'<span class="roll"><span class="roll-in"><span>{t}</span><span aria-hidden="true">{t}</span></span></span>'
+ARROW = svg("M4 12h16M14 6l6 6-6 6")
+ARROW_L = svg("M20 12H4M10 6l-6 6 6 6")
+ARROW_UP = svg("M7 17L17 7M8 7h9v9")
+ARROW_TOP = svg("M12 20V4M6 10l6-6 6 6")
+PLUS = svg("M12 2v20M2 12h20", "marquee-plus", 1.6)
+MARK = ('<svg class="nav-mark" viewBox="0 0 22 22" aria-hidden="true"><path fill="currentColor" '
+        'fill-rule="evenodd" d="M0 0h13v3.4H8.4V22H4.6V3.4H0zM10.6 7h5.3a4.8 4.8 0 0 1 0 9.6h-1.6V22h-3.7z'
+        'm3.7 3.2v3.2h1.5a1.6 1.6 0 0 0 0-3.2z"/></svg>')
 
 
-def head(title, desc, base):
+def head(title, desc, base, css, og="thumb-vision"):
+    links = "\n".join(
+        f'<link rel="stylesheet" href="{base}assets/css/{c}.css?v={ver(f"assets/css/{c}.css")}">'
+        for c in ["base", "nav", *css])
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -449,313 +583,847 @@ def head(title, desc, base):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{e(title)}</title>
 <meta name="description" content="{e(desc)}">
-<meta name="theme-color" content="#FAFAFA">
+<meta name="theme-color" content="#F3F3F2">
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(desc)}">
-<meta property="og:image" content="{base}assets/img/thumb-vision.webp">
+<meta property="og:image" content="{base}assets/img/{og}.webp">
 <link rel="icon" href="{base}assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{base}assets/css/main.css?v={ver("assets/css/main.css")}">
+<link href="{FONTS}" rel="stylesheet">
+{links}
 <script>document.documentElement.classList.add('js')</script>
 </head>"""
 
 
-def nav(base, home):
-    p = "" if home else f"{base}index.html"
-    return f"""
-<header class="nav" data-nav>
-  <a class="nav-brand" href="{base}index.html" data-magnetic>{roll("Théo Petitimbert")}</a>
-  <nav class="nav-links" aria-label="Navigation principale">
-    <a href="{p}#projets">{roll("Projets")}</a>
-    <a href="{p}#a-propos">{roll("À propos")}</a>
-    <a href="#contact">{roll("Contact")}</a>
-  </nav>
-  <span class="nav-time mono" aria-hidden="true"><span class="dot"></span>Paris <span data-clock>--:--</span></span>
-</header>"""
+def scripts(base, js):
+    tags = "".join(f'\n<script src="{base}assets/js/{j}.js?v={ver(f"assets/js/{j}.js")}" defer></script>'
+                   for j in ["base", *js])
+    return f"{tags}\n</body>\n</html>\n"
 
 
-def footer(base):
+def section_copy(b):
+    """Titre, paragraphes et liste numérotée d'un bloc 'section'."""
+    out = f'<h2 class="g-title">{e(b["title"])}</h2>' if b.get("title") else ""
+    out += "".join(f'<p class="g-p">{e(x)}</p>' for x in b.get("text", []))
+    if b.get("list"):
+        out += '<ol class="g-list">' + "".join(
+            f'<li><span class="g-n" aria-hidden="true">{n:02d}</span><h3>{e(h)}</h3><p>{e(x)}</p></li>'
+            for n, (h, x) in enumerate(b["list"], 1)) + "</ol>"
+    return out
+
+
+def figure(name, alt, base, n, caption=None, cls="", style=""):
+    """Image au ratio naturel + petite légende (texte à gauche, numéro à droite)."""
+    w, h = size(name)
+    text = caption or alt
+    hide = "" if caption else ' aria-hidden="true"'
+    long = " g-cap--long" if caption else ""
+    st = f' style="{style}"' if style else ""
+    return f"""<figure class="g-fig{cls}" data-reveal{st}>
+        <div class="frame" style="aspect-ratio:{w}/{h}">{img(name, alt, base)}</div>
+        <figcaption class="g-cap{long}"><span{hide}>{e(text)}</span><span aria-hidden="true">{n:02d}</span></figcaption>
+      </figure>"""
+
+
+# ---------------------------------------------------------------------------
+# Blocs partagés
+# ---------------------------------------------------------------------------
+def render_nav(base, current):
+    home = f"{base}index.html"
+    items = [("home", "Accueil", home), ("work", "Projets", f"{home}#projets"),
+             ("about", "À propos", f"{base}a-propos.html"), ("contact", "Contact", "#contact")]
+    cur = ' aria-current="page"'
+    links = "".join(f'<a href="{h}"{cur if k == current else ""}>{t}</a>' for k, t, h in items)
     return f"""
-<footer class="contact" id="contact">
-  <div class="wrap">
-    <p class="mono label">(Contact)</p>
-    <h2 class="contact-title" data-reveal>Parlons design.</h2>
-    <button class="contact-mail" type="button" data-copy="{SITE['email']}" data-cursor="Copier" data-magnetic>
-      <span class="contact-mail-text">{e(SITE['email'])}</span>
-      <span class="contact-mail-hint mono" data-copy-hint>Cliquer pour copier</span>
-    </button>
-    <div class="contact-grid">
-      <div><p class="mono label">E-mail</p><a class="ulink" href="mailto:{SITE['email']}">{e(SITE['email'])}</a></div>
-      <div><p class="mono label">Téléphone</p><a class="ulink" href="tel:{SITE['phone_href']}">{e(SITE['phone'])}</a></div>
-      <div><p class="mono label">Réseau</p><a class="ulink" href="{SITE['linkedin']}" target="_blank" rel="noopener">LinkedIn {ARROW_UP}</a></div>
-      <div><p class="mono label">Heure locale</p><span>Paris · <span data-clock>--:--</span></span></div>
+  <header class="nav" data-nav>
+    <a class="nav-logo" href="{home}" aria-label="Théo Petitimbert, accueil">{MARK}<span class="nav-logo-name" aria-hidden="true">Théo Petitimbert</span></a>
+    <nav class="nav-pill" aria-label="Navigation principale">{links}</nav>
+    <a class="nav-cta" href="mailto:{SITE['email']}">Me contacter</a>
+  </header>"""
+
+
+def render_next(href, lines, sub, base="", pic=None, here="Accueil", there="À propos"):
+    """Appel « page suivante » : titre géant + vignette, CTA contrasté, barre de progression pleine largeur."""
+    thumb = ""
+    if pic:
+        thumb = f'<span class="next-pic" aria-hidden="true">{img(pic[0], "", base)}</span>'
+    rows = ""
+    for i, x in enumerate(lines):
+        extra = thumb if i == 0 else ""
+        rows += f'<span class="line"><span>{e(x)}{extra}</span></span>'
+    return f"""
+  <section class="next" data-chunk="next" aria-label="Page suivante">
+    <p class="next-label"><span>Page suivante</span></p>
+    <a class="next-link" href="{href}">
+      <span class="next-title" data-reveal>{rows}</span>
+      <span class="next-cta" data-reveal style="--d:.12s"><span class="next-cta-txt">{e(sub)}</span><span class="next-cta-ico">{ARROW}</span></span>
+      <span class="next-bar" aria-hidden="true">
+        <span class="next-seg next-seg--here"><span class="next-seg-lab"><b>Vous êtes ici</b>{e(here)}</span><i class="next-track"><i class="next-fill"></i></i></span>
+        <span class="next-seg next-seg--there"><span class="next-seg-lab"><b>Suivant</b>{e(there)} {ARROW}</span><i class="next-track"><i class="next-fill"></i></i></span>
+      </span>
+    </a>
+  </section>"""
+
+
+def render_footer(base):
+    home = f"{base}index.html"
+    lis = lambda links: "".join(f'<li><a href="{h}">{e(t)}</a></li>' for t, h in links)
+    pages = [("Accueil", home), ("Projets", f"{home}#projets"), ("À propos", f"{base}a-propos.html")]
+    projs = [(p["title"], f"{base}projets/{p['slug']}.html") for p in PROJECTS]
+    half = (len(projs) + 1) // 2
+    name = SITE["name"]
+    return f"""
+<footer class="footer" id="contact" data-chunk="footer" data-tone="dark">
+  <div class="footer-cols grid">
+    <div class="footer-col footer-col--cta">
+      <h2 class="footer-h">Travaillons ensemble</h2>
+      <a class="footer-mail" href="mailto:{SITE['email']}"><span>{e(SITE['email'])}</span>{ARROW_UP}</a>
+      <ul class="footer-list footer-list--row">
+        <li><a href="tel:{SITE['phone_href']}">{e(SITE['phone'])}</a></li>
+        <li>{e(' · '.join(SITE['roles']))}</li>
+      </ul>
     </div>
-    <div class="contact-bottom mono">
-      <span>© 2026 Théo Petitimbert</span>
-      <span>Portfolio 2026</span>
-      <a href="#top" class="ulink" data-top>Retour en haut ↑</a>
-    </div>
+    <nav class="footer-col footer-col--map" aria-label="Plan du site">
+      <h2 class="footer-h">Plan du site</h2>
+      <div class="footer-map">
+        <ul class="footer-list">{lis(pages)}</ul>
+        <ul class="footer-list">{lis(projs[:half])}</ul>
+        <ul class="footer-list">{lis(projs[half:])}</ul>
+      </div>
+    </nav>
+    <p class="footer-col footer-time"><span class="footer-h">Heure locale · Paris</span><strong data-clock>--:--</strong></p>
   </div>
-</footer>
-<div class="toast mono" role="status" aria-live="polite" data-toast></div>
-<div class="cursor" aria-hidden="true"><span class="cursor-label"></span></div>
-<script src="{base}assets/js/main.js?v={ver("assets/js/main.js")}" defer></script>
-</body>
-</html>"""
+  <p class="footer-mark" data-reveal><span class="fm-w"><span class="fm-t">{e(name)}</span></span></p>
+  <div class="footer-bar">
+    <a href="#top">{ARROW_TOP} Retour en haut</a>
+    <span>© 2026 {e(name)} · Portfolio 2026</span>
+    <a href="{SITE['linkedin']}" target="_blank" rel="noopener">Suivre sur LinkedIn {ARROW_UP}</a>
+  </div>
+</footer>"""
 
 
 # ---------------------------------------------------------------------------
-# Accueil
+# Accueil : un rendu par section
 # ---------------------------------------------------------------------------
-def project_rows(base):
-    rows = []
-    for i, p in enumerate(PROJECTS, 1):
-        rows.append(f"""
-      <li class="row" data-cats="{' '.join(p['cats'])}" style="view-transition-name: row-{p['slug']}">
-        <a href="{base}projets/{p['slug']}.html" data-preview="{base}assets/img/{p['thumb']}.webp" data-slug="{p['slug']}" data-cursor="Voir">
-          <span class="row-thumb">{img(p['thumb'], p['title'], base)}</span>
-          <span class="row-num mono">{i:02d}</span>
-          <span class="row-title">{roll(p['title'])}</span>
-          <span class="row-ctx">{e(p['context'])}</span>
-          <span class="row-tags">{e(p['tags'])}</span>
-          <span class="row-year mono">{p['year']}</span>
-          <span class="row-go">{ARROW}</span>
+def render_hero(base):
+    by = {p["slug"]: p for p in PROJECTS}
+    n = len(HERO_SLIDES)
+    slides = nums = ""
+    for i, s in enumerate(HERO_SLIDES):
+        p = by[s["slug"]]
+        href = f"{base}projets/{p['slug']}.html"
+        on = " is-active" if i == 0 else ""
+        style = (f'--pos:{s.get("pos", "50% 50%")};--zoom:{s.get("zoom", 1)};'
+                 f'--origin:{s.get("origin", "50% 50%")};--k:{s.get("k", 10)}')
+        fit = s.get("fit")
+        if fit:
+            style += (f';--h:{fit["h"]};--fx:{fit["fx"]};--fy:{fit["fy"]};--cx:{fit.get("cx", "50%")};'
+                      f'--b:{HERO_DIM};--slide-bg:{edge_color(s["img"], HERO_DIM)}')
+        mode = " hero-slide--fit" if fit else ""
+        slides += f"""
+      <article class="hero-slide{mode}{on}" aria-roledescription="diapositive" aria-label="{i + 1} sur {n}" style="{style}">
+        <div class="hero-media">{img(s['img'], s['alt'], base, eager=i == 0)}</div>
+        <div class="hero-copy">
+          <p class="hero-kicker"><span>({i + 1:02d})</span>{e(p['context'])}</p>
+          <h2 class="hero-title"><a href="{href}"><span>{e(p['title'])}</span></a></h2>
+          <div class="hero-sub">
+            <p>{e(s['line'])}</p>
+            <a class="hero-cta" href="{href}" tabindex="-1" aria-hidden="true"><span>Voir le projet</span><i>{ARROW}</i></a>
+          </div>
+        </div>
+        <p class="hero-caption"><span>{p['year']}</span>{e(p['tags'])}</p>
+      </article>"""
+        nums += f"""
+      <button type="button" class="hero-num{on}" data-go="{i}" aria-label="Afficher {e(p['title'])}"><span class="hero-num-n">{i + 1:02d}.</span><span class="hero-num-t" aria-hidden="true">{e(p['title'])}<small>{e(p['tags'])}</small></span><i class="track" aria-hidden="true"><i class="fill"></i></i></button>"""
+    return f"""
+  <section class="hero" data-chunk="hero" data-hero aria-roledescription="carrousel" aria-label="Projets à la une">
+    <a class="skip" href="#intro">Aller au contenu</a>
+    {render_nav(base, "home")}
+    <h1 class="sr-only">Théo Petitimbert · {e(', '.join(SITE['roles']))}</h1>
+    <div class="hero-slides">{slides}
+    </div>
+    <div class="hero-index">{nums}
+    </div>
+    <div class="hero-bar">
+      <a class="hero-scroll" href="#intro"><i aria-hidden="true"></i>Défiler</a>
+      <div class="hero-arrows">
+        <button type="button" data-prev aria-label="Projet précédent">{ARROW_L}</button>
+        <span>Projets à la une</span>
+        <button type="button" data-next aria-label="Projet suivant">{ARROW}</button>
+      </div>
+      <span>Portfolio 2026</span>
+    </div>
+  </section>"""
+
+
+def render_intro(base):
+    lines = "".join(f'<span class="line">{e(x)}</span>' for x in INTRO_LINES)
+    return f"""
+  <section class="intro grid" id="intro" data-chunk="intro" aria-label="Présentation">
+    <h2 class="intro-title" data-reveal>{lines}</h2>
+    <div class="intro-side" data-reveal style="--d:.15s">
+      <p>{e(SITE['bio_more'][0])}</p>
+      <a class="btn" href="{base}a-propos.html"><span>Mon parcours</span><span class="btn-ico">{ARROW}</span></a>
+    </div>
+  </section>"""
+
+
+def render_work(base):
+    pos = "abcdef"
+
+    def card(i, p):
+        return f"""
+      <article class="card card--{pos[i % 6]}" data-reveal>
+        <a href="{base}projets/{p['slug']}.html">
+          <span class="card-num" aria-hidden="true">{i + 1:02d}</span>
+          <span class="card-frame frame">{img(CARDS[p['slug']], '', base)}</span>
+          <span class="card-meta"><span class="card-title">{e(p['title'])}</span><span class="card-cat">{e(p['tags'])}</span></span>
         </a>
-      </li>""")
-    return "".join(rows)
+      </article>"""
+
+    first = "".join(card(i, p) for i, p in enumerate(PROJECTS[:CARDS_VISIBLE]))
+    rest = "".join(card(i, p) for i, p in enumerate(PROJECTS) if i >= CARDS_VISIBLE)
+    return f"""
+  <section class="work" id="projets" data-chunk="work" aria-labelledby="work-title">
+    <h2 id="work-title" class="sr-only">Projets</h2>
+    <div class="work-grid grid">{first}
+      <div class="work-more" id="work-more">{rest}
+      </div>
+    </div>
+    <div class="work-foot">
+      <button type="button" class="work-toggle" data-more-toggle aria-expanded="false" aria-controls="work-more" data-close-label="Voir moins de projets" hidden>
+        <span class="work-plus" aria-hidden="true"></span>
+        <span class="work-all"><span class="work-all-label" data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
+      </button>
+    </div>
+  </section>"""
+
+
+def render_clients(base):
+    track = "".join(f"<span>{e(w)}</span>{PLUS}" for w in MARQUEE * 2)
+
+    def mark(name, voice, lock):
+        cls = f"mark mark--{voice}"
+        if not lock:
+            return f'<span class="{cls}"><span class="mark-main">{e(name)}</span></span>'
+        kind, *parts = lock
+        if kind == "stack":
+            main, sub = parts
+            inner = (f'<span class="mark-main">{e(main)}</span>'
+                     f'<span class="mark-sub">{"".join(f"<span>{e(c)}</span>" for c in sub.upper())}</span>')
+        elif kind == "side":
+            main, sub = parts
+            inner = (f'<span class="mark-main">{e(main)}</span>'
+                     f'<span class="mark-sub">{"".join(f"<span>{e(x)}</span>" for x in sub.split("|"))}</span>')
+        elif kind == "split":
+            inner = "".join(f'<span class="mark-part">{e(x)}</span>' for x in parts)
+        else:  # caret
+            inner = f'<span class="mark-main">{e(parts[0])}</span><span class="mark-caret"></span>'
+        return (f'<span class="{cls} mark--{kind}" aria-hidden="true">{inner}</span>'
+                f'<span class="sr-only">{e(name)}</span>')
+
+    tiles = "".join(f"""
+      <li class="logo logo--{voice}" style="--i:{i}">
+        <span class="logo-n" aria-hidden="true">{i + 1:02d}</span>
+        {mark(name, voice, lock)}
+        <span class="logo-tag">{e(tag)}</span>
+      </li>""" for i, (name, tag, voice, lock) in enumerate(CLIENTS))
+    return f"""
+  <section class="clients" data-chunk="clients" data-tone="dark" aria-labelledby="clients-title">
+    <h2 id="clients-title" class="sr-only">Partenaires, clients et collaborations</h2>
+    <div class="marquee" aria-hidden="true"><div class="marquee-track">{track}</div><div class="marquee-track">{track}</div></div>
+    <div class="clients-head">
+      <p><span class="clients-count">{len(CLIENTS):02d}</span>Organisations rencontrées en formation, en stage, en alternance et en projet</p>
+      <p>2021 → 2026</p>
+    </div>
+    <ul class="logos" data-logos data-reveal>{tiles}
+    </ul>
+  </section>"""
+
+
+def render_services(base):
+    items = "".join(f"\n      <li>{e(s)}</li>" for s in SERVICES)
+    return f"""
+  <section class="services grid" data-chunk="services" aria-labelledby="services-title">
+    <h2 class="services-label" id="services-title">Savoir-faire, outils<br>et expertises</h2>
+    <ul class="services-list" data-services>{items}
+    </ul>
+  </section>"""
 
 
 def build_index():
     base = ""
-    counts = {k: (len(PROJECTS) if k == "all" else sum(k in p["cats"] for p in PROJECTS)) for k, _ in FILTERS}
-    filters = "".join(
-        f'<button type="button" class="chip{" is-active" if k == "all" else ""}" data-filter="{k}" '
-        f'aria-pressed="{"true" if k == "all" else "false"}">{lbl}<sup>{counts[k]}</sup></button>'
-        for k, lbl in FILTERS)
-    letters = lambda w: "".join(f'<span class="ch" style="--i:{i}">{e(c)}</span>' for i, c in enumerate(w))
-    roles = "".join(f'<span class="role">{e(r)}</span>' for r in SITE["roles"])
-    method = "".join(f"""
-        <li class="step" data-reveal style="--d:{i * 80}ms">
-          <span class="mono step-num">0{i + 1}</span>
-          <h3>{e(t)}</h3>
-          <p>{e(d)}</p>
-        </li>""" for i, (t, d) in enumerate(STUDIO["method"]))
-    studio_imgs = "".join(f"""
-        <figure class="studio-fig" data-reveal style="--d:{i * 80}ms">
-          <div class="frame">{img(n, c, base)}</div>
-          <figcaption class="mono">{e(c)}</figcaption>
-        </figure>""" for i, (n, c) in enumerate(STUDIO["images"]))
-    cv = "".join(
-        f'<div class="cv-block" data-reveal><h3 class="mono label">{e(k)}</h3><ul>' +
-        "".join(f'<li><span class="mono cv-date">{e(d)}</span><strong>{e(t)}</strong><span>{e(x)}</span></li>'
-                for d, t, x in items) + "</ul></div>"
-        for k, items in CV.items())
-    skills = "".join(
-        f'<div class="cv-block" data-reveal><h3 class="mono label">{e(k)}</h3><ul class="plain">' +
-        "".join(f"<li>{e(x)}</li>" for x in items) + "</ul></div>"
-        for k, items in SKILLS.items())
-    words = " ".join(f'<span class="w">{e(w)}</span>' for w in SITE["bio"].split())
-
     html = head("Théo Petitimbert · Product & Global designer",
-                "Portfolio 2026 de Théo Petitimbert, product designer, UX/UI designer et designer global.", base)
+                "Portfolio 2026 de Théo Petitimbert, product designer, UX/UI designer et designer global.", base,
+                ["hero", "intro", "work", "clients", "services", "next", "footer"])
     html += f"""
-<body class="home" id="top">
-<a class="skip" href="#projets">Aller aux projets</a>
-{nav(base, True)}
-<main>
-  <section class="hero" data-hero aria-label="Introduction">
-    <canvas class="hero-bg" data-hero-bg aria-hidden="true"></canvas>
-    <canvas class="hero-grid" data-hero-grid aria-hidden="true"></canvas>
-    <div class="hero-grain" aria-hidden="true"></div>
-    <div class="hero-inner">
-      <div class="hero-top">
-        <p class="hero-roles" aria-label="{e(', '.join(SITE['roles']))}"><span class="roles" aria-hidden="true">{roles}</span></p>
-        <p class="hero-lede">Je transforme des sujets complexes en produits, services et expériences utiles, compréhensibles et désirables.</p>
-      </div>
-      <h1 class="hero-name" aria-label="Théo Petitimbert">
-        <span class="line" aria-hidden="true">{letters("Théo")}</span>
-        <span class="line" aria-hidden="true">{letters("Petitimbert")}</span>
-      </h1>
-      <div class="hero-bottom mono">
-        <span>Portfolio · 2026</span>
-        <span class="hide-s">Master 2 Design Global · CY école de design</span>
-        <a href="#projets" class="hero-scroll" data-cursor="Go">Défiler <span class="scroll-line"></span></a>
-      </div>
-    </div>
-  </section>
-
-  <div class="sheet">
-    <section class="intro wrap" aria-label="Présentation">
-      <p class="mono label">(Designer global)</p>
-      <p class="intro-text" data-scrub>{words}</p>
-    </section>
-
-    <section class="work wrap" id="projets" aria-labelledby="projets-title">
-      <div class="work-head">
-        <h2 id="projets-title" class="section-title">Projets <sup class="mono" data-count>{len(PROJECTS):02d}</sup></h2>
-        <div class="work-tools">
-          <div class="chips" role="group" aria-label="Filtrer les projets">{filters}</div>
-          <div class="view-toggle" role="group" aria-label="Affichage">
-            <button type="button" class="vt is-active" data-view="list" aria-pressed="true" aria-label="Vue liste">
-              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4h14M1 8h14M1 12h14" stroke="currentColor" stroke-width="1.3"/></svg></button>
-            <button type="button" class="vt" data-view="grid" aria-pressed="false" aria-label="Vue grille">
-              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="1.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="9.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="9.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
-          </div>
-        </div>
-      </div>
-      <div class="list-legend mono" aria-hidden="true">
-        <span>N°</span><span>Projet</span><span>Contexte</span><span>Discipline</span><span>Année</span><span></span>
-      </div>
-      <ol class="list" data-list data-view="list">{project_rows(base)}
-      </ol>
-    </section>
-
-    <section class="studio wrap" aria-labelledby="studio-title">
-      <div class="split">
-        <div>
-          <p class="mono label">(Expérience · 2024 → 2026)</p>
-          <h2 id="studio-title" class="section-title">Design Studio<br><span class="muted">iXcampus, en alternance</span></h2>
-        </div>
-        <div class="studio-intro">
-          <p data-reveal>{e(STUDIO['intro'])}</p>
-          <dl class="studio-dl" data-reveal>
-            <div><dt class="mono label">Missions</dt><dd>{e(STUDIO['missions'])}</dd></div>
-            <div><dt class="mono label">Livrables</dt><dd>{e(STUDIO['deliverables'])}</dd></div>
-          </dl>
-        </div>
-      </div>
-      <ol class="steps">{method}
-      </ol>
-      <div class="studio-figs">{studio_imgs}
-      </div>
-    </section>
-
-    <section class="about wrap" id="a-propos" aria-labelledby="about-title">
-      <div class="about-grid">
-        <figure class="about-portrait" data-reveal>
-          <div class="frame">{img("portrait", "Portrait de Théo Petitimbert", base)}</div>
-        </figure>
-        <div class="about-body">
-          <p class="mono label">(À propos)</p>
-          <h2 id="about-title" class="about-lead" data-reveal>{e(SITE['bio'])}</h2>
-          {''.join(f'<p class="about-p" data-reveal>{e(x)}</p>' for x in SITE['bio_more'])}
-          <div class="cv">{cv}{skills}</div>
-        </div>
-      </div>
-    </section>
-  </div>
-</main>"""
-    html += footer(base)
+<body class="page-home" id="top">
+<main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours", base, pic=("portrait",), here="Accueil", there="À propos")}
+</main>{render_footer(base)}{scripts(base, ["hero", "work", "services"])}"""
     (ROOT / "index.html").write_text(html, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
-# Pages projet
+# Pages projet : un rendu par section
 # ---------------------------------------------------------------------------
-def render_block(b, base):
-    t = b["t"]
-    if t == "section":
-        body = ""
-        if b.get("text"):
-            body += "".join(f"<p>{e(x)}</p>" for x in b["text"])
-        if b.get("list"):
-            body += '<ol class="points">' + "".join(
-                f'<li data-reveal><span class="mono">{i:02d}</span><div><h4>{e(h)}</h4><p>{e(x)}</p></div></li>'
-                for i, (h, x) in enumerate(b["list"], 1)) + "</ol>"
-        title = f'<h3 class="block-title">{e(b["title"])}</h3>' if b.get("title") else ""
+# Cadrage du hero projet : (zoom, origine du zoom). Le sujet est poussé à droite et
+# déborde du cadre, pour laisser la gauche au titre et créer une tension.
+PHERO_CROP = {
+    "vision": (1.6, "9% 64%"),
+    "liawalk": (1.18, "78% 30%"),
+    "site-ixcampus": (1.6, "0% 0%"),
+    "pentagone": (1.55, "96% 30%"),
+    "lannion": (1.12, "70% 45%"),
+    "design-fablab": (2.1, "80% 30%"),
+}
+
+
+def phero_lines(title):
+    """Coupe les titres longs en deux lignes équilibrées."""
+    words = title.split()
+    if len(title) <= 10 or len(words) < 2:
+        return [title]
+    best = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
+    return [" ".join(words[:best]), " ".join(words[best:])]
+
+
+def render_phero(i, p, base):
+    cover = p["cover"]
+    t = tone(cover)
+    dark = ' data-tone="dark"' if t == "dark" else ""
+    sub = p.get("subtitle", p["context"])
+    z, o = PHERO_CROP.get(p["slug"], (1, "50% 50%"))
+    lines = phero_lines(p["title"])
+    longest = max(len(x) for x in lines)
+    title = "".join(f'<span><span style="--d:{.08 + k * .09:.2f}s">{e(x)}</span></span>' for k, x in enumerate(lines))
+    return f"""
+  <section class="phero phero--{t}" data-chunk="phero"{dark} aria-labelledby="p-title" style="--z:{z};--ox:{o.split()[0]};--oy:{o.split()[1]};--n:{longest}">
+    <a class="skip" href="#pintro">Aller au contenu</a>
+    {render_nav(base, "work")}
+    <div class="phero-media">{img(cover, f"{p['title']}, image de couverture", base, eager=True)}</div>
+    <div class="phero-head">
+      <p class="phero-kicker"><span>Projet {i + 1:02d}</span><span>{p['year']}</span></p>
+      <p class="phero-tags">{e(p['tags'])}</p>
+      <p class="phero-text">{e(p['summary'])}</p>
+    </div>
+    <h1 class="phero-title phero-title--{len(lines)}" id="p-title">{title}</h1>
+    <div class="phero-bar">
+      <span>{e(p['title'])} · {e(sub)}</span>
+      <a href="#pintro"><i aria-hidden="true"></i>Défiler</a>
+      <span>{i + 1:02d} / {len(PROJECTS):02d}</span>
+    </div>
+  </section>"""
+
+
+def render_pintro(p, base):
+    keys = [k for k, _ in p["meta"]]
+    values = " ".join(v if isinstance(v, str) else v[0] for _, v in p["meta"])
+    meta = []
+    if p["context"] not in values:
+        meta.append(("Contexte" if "Contexte" not in keys else "Structure", p["context"]))
+    meta.append(("Discipline", p["tags"]))
+    meta += p["meta"]
+    items = ""
+    for k, v in meta:
+        val = (f'<a class="ulink" href="{v[1]}" target="_blank" rel="noopener">{e(v[0])}</a> {ARROW_UP}'
+               if isinstance(v, tuple) else e(v))
+        items += f"\n      <div><dt>{e(k)}</dt><dd>{val}</dd></div>"
+    return f"""
+  <section class="pintro grid" id="pintro" data-chunk="pintro" aria-label="Présentation du projet">
+    <dl class="pintro-meta" data-reveal>{items}
+    </dl>
+    <p class="pintro-lead" data-reveal style="--d:.1s">{e(p['question'])}</p>
+  </section>"""
+
+
+PAGE_RGB = (243, 243, 242)
+_flat = {}
+
+
+def pg_flat(name, tight=True):
+    """Planche sur fond clair uni : dérivé 'pgallery-*' dont le fond devient celui de la page,
+    pour que le visuel flotte sans cartouche. Renvoie (nom à utiliser, aplati ?)."""
+    if name in _flat:
+        return _flat[name]
+    res = (name, False)
+    with Image.open(IMG / f"{name}.webp") as im:
+        rgb = im.convert("RGB")
+    w, h = rgb.size
+    k = max(8, int(min(w, h) * .03))
+    stats = [ImageStat.Stat(rgb.crop(b)) for b in
+             [(0, 0, k, k), (w - k, 0, w, k), (0, h - k, k, h), (w - k, h - k, w, h)]]
+    means = [s.mean for s in stats]
+    sd = max(max(s.stddev) for s in stats)
+    if all(min(m) >= 222 for m in means) and sd < 8 and not all(min(m) >= 254 for m in means):
+        out = f"pgallery-{name}"
+        dst = IMG / f"{out}.webp"
+        if not dst.exists():
+            knee = 14 if sd > .5 else 3
+            bands = []
+            for c, band in enumerate(rgb.split()):
+                t = max(1, min(m[c] for m in means) - knee)
+                pc = PAGE_RGB[c]
+                bands.append(band.point(lambda v, t=t, pc=pc: min(pc, round(v * pc / t))))
+            flat = Image.merge("RGB", bands)
+            if name in PG_INK:
+                g = PG_INK[name]
+                flat = Image.merge("RGB", [b.point(lambda v, pc=pc: round(pc * (v / pc) ** g) if v < pc else v)
+                                           for b, pc in zip(flat.split(), PAGE_RGB)])
+            # recadrage serré sur le contenu : la planche occupe toute sa colonne
+            diff = ImageChops.difference(flat, Image.new("RGB", flat.size, PAGE_RGB)).convert("L")
+            box = diff.point(lambda v: 255 if v > 18 else 0).getbbox()
+            if box and tight:
+                pad = int(max(w, h) * .025)
+                box = (max(0, box[0] - pad), max(0, box[1] - pad), min(w, box[2] + pad), min(h, box[3] + pad))
+                flat = flat.crop(box)
+            if name in PG_CROP:
+                fw, fh = flat.size
+                x0, y0, x1, y1 = PG_CROP[name]
+                flat = flat.crop((int(x0 * fw), int(y0 * fh), int(x1 * fw), int(y1 * fh)))
+            for x0, y0, x1, y1 in PG_ERASE.get(name, []):
+                fw, fh = flat.size
+                flat.paste(PAGE_RGB, (int(x0 * fw), int(y0 * fh), int(x1 * fw), int(y1 * fh)))
+            flat.save(dst, "WEBP", quality=90, method=6)
+        res = (out, True)
+    _flat[name] = res
+    return res
+
+
+def same_picture(a, b):
+    """Deux fichiers montrant la même photo (même cadrage, à la compression près)."""
+    if a == b:
+        return True
+    with Image.open(IMG / f"{a}.webp") as ia, Image.open(IMG / f"{b}.webp") as ib:
+        if ia.size != ib.size:
+            return False
+        sa, sb = (x.convert("L").resize((24, 14), Image.BOX) for x in (ia, ib))
+    return ImageStat.Stat(ImageChops.difference(sa, sb)).mean[0] < 4
+
+
+def render_pgallery(p, base):
+    # une image identique à la couverture du hero ferait doublon : elle est écartée
+    blocks = [b for b in p["blocks"] if not (b["t"] == "img" and same_picture(b["src"], p["cover"]))]
+    out = []
+    count = [0]
+
+    def num():
+        count[0] += 1
+        return count[0]
+
+    def fig(name, alt, cls="", style="", caption=None):
+        src, is_flat = pg_flat(name)
+        w, h = size(src)
+        n = num()
+        klass = "g-fig" + (" is-flat" if is_flat else "") + (f" {cls}" if cls else "")
+        st = f' style="{style}"' if style else ""
+        cap = (f'\n        <figcaption class="g-cap"><span>{e(caption)}</span><span aria-hidden="true">{n:02d}</span></figcaption>'
+               if caption else f'\n        <span class="g-n-tag" aria-hidden="true">{n:02d}</span>')
+        return f"""<figure class="{klass}" data-reveal{st}>
+        <div class="frame" style="aspect-ratio:{w}/{h}">{img(src, alt, base)}</div>{cap}
+      </figure>"""
+
+    def title(sec, tag="h2", poster=False):
+        t = sec.get("title")
+        if not t:
+            return ""
+        xl = " g-title--xl" if len(t) <= 30 else (" g-title--poster" if poster else "")
+        return f'<{tag} class="g-title{xl}">{e(t)}</{tag}>'
+
+    def body(sec, cols=None):
+        o = "".join(f'<p class="g-p">{e(x)}</p>' for x in sec.get("text", []))
+        items = sec.get("list") or []
+        if items:
+            c = cols or min(len(items), 5 if len(items) > 3 else 3)
+            o += f'<ol class="g-list" style="--n:{c}">' + "".join(
+                f'<li><span class="g-n" aria-hidden="true">{k:02d}</span><h3>{e(a)}</h3><p>{e(b)}</p></li>'
+                for k, (a, b) in enumerate(items, 1)) + "</ol>"
+        return o
+
+    def label(sec):
+        return f'<p class="g-label"><span>{e(sec["label"])}</span></p>'
+
+    def header(sec, extra=""):
+        wide = " g-text--wide" if len(sec.get("list") or []) > 3 else ""
+        lst = (f'\n      <div class="g-text-list" data-reveal style="--d:.14s">{body({"list": sec["list"]})}</div>'
+               if sec.get("list") else "")
         return f"""
-    <section class="block wrap">
-      <p class="mono label block-label">({e(b['label'])})</p>
-      <div class="block-body" data-reveal>{title}{body}</div>
+    <section class="g-row g-text grid{wide}{extra}">
+      <div class="g-text-label" data-reveal>{label(sec)}</div>
+      <div class="g-body" data-reveal style="--d:.08s">{title(sec, poster=True)}{body({"text": sec.get("text", [])})}</div>{lst}
     </section>"""
-    if t == "img":
-        cap = f'<figcaption class="mono">{e(b["caption"])}</figcaption>' if b.get("caption") else ""
-        return f"""
-    <figure class="media media-{b.get('size', 'wide')} wrap" data-reveal>
-      <div class="frame">{img(b['src'], b['alt'], base)}</div>{cap}
-    </figure>"""
-    if t == "imgs":
-        items = "".join(f'<div class="frame" data-reveal style="--d:{i * 70}ms">{img(s, a, base)}</div>'
-                        for i, (s, a) in enumerate(b["items"]))
-        cap = f'<figcaption class="mono">{e(b["caption"])}</figcaption>' if b.get("caption") else ""
-        return f"""
-    <figure class="media wrap">
-      <div class="gallery cols-{b.get('cols', 2)}">{items}</div>{cap}
-    </figure>"""
-    if t == "quotes":
-        items = "".join(f"""
-        <figure class="quote" data-reveal style="--d:{i * 90}ms">
-          <div class="frame">{img(s, "Persona", base)}</div>
-          <blockquote>« {e(q)} »</blockquote>
-        </figure>""" for i, (s, q) in enumerate(b["items"]))
-        return f"""
-    <section class="block wrap">
-      <p class="mono label block-label">({e(b['label'])})</p>
-      <div class="quotes">{items}</div>
-    </section>"""
-    if t == "link":
-        return f"""
-    <div class="block wrap">
-      <span></span>
-      <a class="cta" href="{b['href']}" target="_blank" rel="noopener" data-magnetic data-cursor="Ouvrir">{roll(b['text'])} {ARROW_UP}</a>
+
+    def cover(sec, im):
+        src = im["src"]
+        w, h = size(src)
+        dark = tone(src, (.15, .25, .85, .75)) == "dark"
+        after = ""
+        if sec.get("list") or sec.get("text"):
+            after = f"""
+    <div class="g-row g-after grid">
+      <div class="g-body" data-reveal>{body(sec)}</div>
     </div>"""
-    raise ValueError(t)
+        num()
+        return f"""
+    <section class="g-row g-cover{' is-dark' if dark else ''}"{' data-tone="dark"' if dark else ''} aria-label="{e(sec['label'])}">
+      <div class="frame" style="--ar:{w}/{h}">{img(src, im['alt'], base)}</div>
+      <div class="g-cover-head">
+        <p class="g-label" data-reveal><span>{e(sec['label'])}</span></p>
+        <h2 class="g-cover-title" data-reveal style="--d:.1s">{e(sec['title'])}</h2>
+      </div>
+    </section>{after}"""
+
+    def pair(sec, im, variant, flip):
+        fl = " is-flip" if flip else ""
+        cap = im.get("caption")
+        if variant == "plate":
+            n = count[0] + 1
+            text = "".join(f"<span>{e(x)}</span>" for x in sec.get("text", []))
+            foot = (f"""
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap">{text}</p>
+      </div>""" if text else "")
+            return f"""
+    <section class="g-row g-plate">
+      <div class="grid g-plate-head">
+        <div class="g-text-label" data-reveal>{label(sec)}</div>
+        <h2 class="g-plate-title" data-reveal style="--d:.08s">{e(sec['title'])}</h2>
+      </div>
+      <div class="grid">{fig(im['src'], im['alt'], 'g-plate-fig')}</div>{foot}
+    </section>"""
+        if variant == "stage":
+            src, alt = PG_STAGE[im["src"]]
+            src = pg_flat(src, tight=False)[0]  # le fond du rendu devient celui de la page : aucune couture
+            w, h = size(src)
+            num()
+            n = count[0] + 1
+            text = "".join(f"<span>{e(x)}</span>" for x in sec.get("text", []))
+            return f"""
+    <section class="g-row g-stage" aria-label="{e(sec['label'])}">
+      <div class="frame" style="--ar:{w}/{h}">{img(src, alt, base)}</div>
+      <div class="g-stage-head grid">
+        <div class="g-stage-copy">
+          <p class="g-label" data-reveal><span>{e(sec['label'])}</span></p>
+          <h2 class="g-stage-title" data-reveal style="--d:.08s">{e(sec['title'])}</h2>
+        </div>
+      </div>
+    </section>
+    <div class="g-row g-follow g-stage-after">
+      <div class="grid">{fig(im['src'], "Schéma en couches : l’utilisateur, Vision, l’application", 'g-plate-fig g-stage-fig')}</div>
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap">{text}</p>
+      </div>
+    </div>"""
+        if variant == "stack":
+            return f"""
+    <section class="g-row g-stack">{header(sec, ' g-text--in')}
+      <div class="grid">{fig(im['src'], im['alt'], caption=cap)}</div>
+    </section>"""
+        return f"""
+    <section class="g-row g-pair g-pair--{variant} grid{fl}">
+      {fig(im['src'], im['alt'], caption=cap)}
+      <div class="g-copy" data-reveal style="--d:.1s">{label(sec)}{title(sec)}{body(sec, 1)}</div>
+    </section>"""
+
+    def composite(sec, items):
+        (s1, a1), (s2, a2) = items
+        w, h = size(pg_flat(s2)[0])
+        tall = " is-tall" if h > w * 1.3 else ""
+        return f"""
+    <section class="g-row g-duo grid{tall}">
+      <div class="g-copy" data-reveal>{label(sec)}{title(sec)}{body(sec, 1)}</div>
+      {fig(s1, a1, 'g-duo-a')}
+      {fig(s2, a2, 'g-duo-b', '--d:.12s')}
+    </section>"""
+
+    flip = False
+    wide_k = 0
+    i = 0
+    while i < len(blocks):
+        b = blocks[i]
+        nx = blocks[i + 1] if i + 1 < len(blocks) else None
+        t = b["t"]
+        if t == "section" and nx and nx["t"] == "img" and PG_SCALE.get(nx["src"]) == "bleed":
+            out.append(cover(b, nx))
+            i += 2
+            continue
+        if t == "section" and nx and nx["t"] == "img" and nx.get("size", "wide") != "full":
+            if nx.get("size") == "narrow" and nx["src"] not in PG_SCALE:
+                variant = "narrow"
+            else:
+                variant = PG_SCALE.get(nx["src"]) or ("stack" if b.get("list") or wide_k % 2 else "side")
+                wide_k += 1
+            out.append(pair(b, nx, variant, flip))
+            if variant != "stack":
+                flip = not flip
+            i += 2
+            continue
+        if t == "section" and nx and nx["t"] == "imgs" and len(nx["items"]) == 2:
+            out.append(composite(b, nx["items"]))
+            i += 2
+            continue
+        if t == "img" and b.get("size") == "full":
+            link = nx if nx and nx["t"] == "link" else None
+            src = b["src"]
+            w, h = size(src)
+            tn = tone(src, (.2, .3, .8, .7))
+            text = ""
+            if link:
+                text = f'<a href="{link["href"]}" target="_blank" rel="noopener">{e(link["text"])} {ARROW_UP}</a>'
+            elif b.get("caption"):
+                text = e(b["caption"])
+            side = " g-full-text--side" if link else ""
+            cap = (f'\n      <figcaption class="g-full-text{side}"><span data-reveal>{text}</span></figcaption>'
+                   if text else "")
+            num()
+            out.append(f"""
+    <figure class="g-row g-full g-full--{tn}"{' data-tone="dark"' if tn == 'dark' else ''}>
+      <div class="frame" style="--ar:{w}/{h}">{img(src, b['alt'], base)}</div>{cap}
+    </figure>""")
+            i += 2 if link else 1
+            continue
+        if t == "section":
+            out.append(header(b))
+        elif t == "img":
+            cap = b.get("caption")
+            if cap:
+                follow = " g-follow" if blocks[i - 1]["t"] == "img" or PG_SCALE.get(blocks[i - 1].get("src", "")) else ""
+                n = count[0] + 1
+                out.append(f"""
+    <div class="g-row g-img g-img--cap{follow}">
+      <div class="grid">{fig(b['src'], b['alt'], 'g-plate-fig')}</div>
+      <div class="grid g-plate-foot" data-reveal>
+        <span class="g-plate-n" aria-hidden="true">({n:02d})</span>
+        <p class="g-plate-cap"><span>{e(cap)}</span></p>
+      </div>
+    </div>""")
+            else:
+                narrow = " g-img--narrow" if b.get("size") == "narrow" else ""
+                out.append(f"""
+    <div class="g-row g-img grid{narrow}{' is-flip' if flip else ''}">
+      {fig(b['src'], b['alt'])}
+    </div>""")
+                flip = not flip
+        elif t == "imgs":
+            items = b["items"]
+            layout = SET_LAYOUT.get(len(items)) or [(1 + (k % 3) * 4, 4, 0) for k in range(len(items))]
+            figs = ""
+            for k, ((src, alt), (c, s, o)) in enumerate(zip(items, layout)):
+                w, h = size(src)
+                if h > w * 1.6 and s > 4:
+                    s = 4
+                figs += "\n      " + fig(src, alt, "", f"--c:{c};--s:{s};--o:{o}px;--d:{k * 0.06:.2f}s")
+            out.append(f"""
+    <div class="g-row g-set grid">{figs}
+    </div>""")
+        elif t == "quotes":
+            qs = ""
+            for k, (src, q) in enumerate(b["items"]):
+                qs += f"""
+      <div class="g-quote{' is-flip' if k % 2 else ''}">
+        {fig(src, 'Persona')}
+        <blockquote data-reveal style="--d:.1s"><p>« {e(q)} »</p></blockquote>
+      </div>"""
+            out.append(f"""
+    <section class="g-row g-quotes grid" aria-label="{e(b['label'])}">
+      <div class="g-text-label">{label(b)}</div>{qs}
+    </section>""")
+        elif t == "link":
+            host = b["href"].split("//", 1)[-1].rstrip("/")
+            out.append(f"""
+    <div class="g-row g-link">
+      <a class="g-cta grid" href="{b['href']}" target="_blank" rel="noopener" data-reveal>
+        <span class="g-cta-host">{e(host)}</span>
+        <span class="g-cta-text">{e(b['text'])}</span>
+        <span class="g-cta-disc" aria-hidden="true">{ARROW_UP}</span>
+      </a>
+    </div>""")
+        else:
+            raise ValueError(t)
+        i += 1
+    return f"""
+  <div class="pgallery" data-chunk="pgallery">{''.join(out)}
+  </div>"""
+
+
+def pnext_zone(name, aspect=2.6):
+    """Côté le plus calme (moins de détails) du bas de la couverture, telle qu'elle est cadrée
+    dans le bandeau « Projet suivant », et sa luminosité : le titre s'y pose, en blanc sur
+    zone sombre, en noir sur zone claire."""
+    from PIL import ImageFilter, ImageStat
+    with Image.open(IMG / f"{name}.webp") as im:
+        g = im.convert("L")
+    w, h = g.size
+    vh = min(h, round(w / aspect))
+    top = (h - vh) // 2
+    g = g.crop((0, top, w, top + vh)).resize((360, round(360 * vh / w)))
+    W, H = g.size
+    edges = g.filter(ImageFilter.FIND_EDGES)
+    zones = {"left": (0, int(H * .3), int(W * .5), H), "right": (int(W * .5), int(H * .3), W, H)}
+    energy = {k: ImageStat.Stat(edges.crop(b)).mean[0] for k, b in zones.items()}
+    side = min(energy, key=energy.get)
+    st = ImageStat.Stat(g.crop(zones[side]))
+    t = "dark" if st.mean[0] < 150 else "light"
+    # voile proportionnel au contraste de la zone : léger sur un aplat, dense sur une photo chargée
+    veil = min(.7, max(.3, .25 + st.stddev[0] * .005)) if t == "dark" else .78
+    return side, t, round(veil, 2)
+
+
+def render_pnext(nxt, base):
+    k = next(j for j, q in enumerate(PROJECTS) if q["slug"] == nxt["slug"])
+    side, t, veil = pnext_zone(nxt["cover"])
+    cls = f"pnext-link is-{side} is-{t}"
+    return f"""
+<div class="pnext" data-chunk="pnext">
+  <a class="{cls}" style="--pn-a:{veil}" href="{nxt['slug']}.html"{' data-tone="dark"' if t == 'dark' else ''} aria-label="Projet suivant : {e(nxt['title'])}">
+    {img(nxt['cover'], '', base)}
+    <span class="pnext-veil" aria-hidden="true"></span>
+    <span class="pnext-top" aria-hidden="true"><span class="pnext-kicker">Projet suivant</span><span class="pnext-count">{k + 1:02d}<i></i>{len(PROJECTS):02d}</span></span>
+    <span class="pnext-body">
+      <span class="pnext-title">{e(nxt['title'])}</span>
+      <span class="pnext-meta"><span>{e(nxt['context'])}</span><span>{e(nxt['year'])}</span><span>{e(nxt['tags'])}</span></span>
+    </span>
+    <span class="pnext-go" aria-hidden="true"><span class="pnext-go-label">Voir le projet</span><span class="pnext-go-disc">{ARROW}</span></span>
+  </a>
+  <footer class="pbar" id="contact">
+    <a href="#top">{ARROW_TOP} Retour en haut</a>
+    <span>© 2026 Théo Petitimbert</span>
+    <span><a class="ulink" href="mailto:{SITE['email']}">{e(SITE['email'])}</a><a class="ulink" href="{SITE['linkedin']}" target="_blank" rel="noopener">LinkedIn</a></span>
+  </footer>
+</div>"""
 
 
 def build_project(i, p):
     base = "../"
     nxt = PROJECTS[(i + 1) % len(PROJECTS)]
-    meta = ""
-    for k, v in p["meta"]:
-        val = (f'<a class="ulink" href="{v[1]}" target="_blank" rel="noopener">{e(v[0])} {ARROW_UP}</a>'
-               if isinstance(v, tuple) else e(v))
-        meta += f'<div><dt class="mono label">{e(k)}</dt><dd>{val}</dd></div>'
-    letters = "".join(f'<span class="ch" style="--i:{j}">{e(c) if c != " " else "&nbsp;"}</span>'
-                      for j, c in enumerate(p["title"]))
-    sub = p.get("subtitle", p["context"])
-    html = head(f"{p['title']} · Théo Petitimbert", p["summary"], base)
+    html = head(f"{p['title']} · Théo Petitimbert", p["summary"], base,
+                ["project-hero", "project-intro", "project-gallery", "project-next"], og=p["thumb"])
     html += f"""
-<body class="project" id="top">
-{nav(base, False)}
-<main>
-  <article class="p-article" data-slug="{p['slug']}" data-title="{e(p['title'])} · Théo Petitimbert" data-next="{nxt['slug']}.html">
-    <header class="p-head wrap">
-      <div class="p-crumbs mono">
-        <a href="../index.html#projets" class="ulink back">← Index</a>
-        <span>{i + 1:02d} / {len(PROJECTS):02d}</span>
-      </div>
-      <p class="mono p-kicker">{e(sub)} · {e(p['context']) if sub != p['context'] else ''}{' · ' if sub != p['context'] else ''}{p['year']}</p>
-      <h1 class="p-title" aria-label="{e(p['title'])}"><span class="line" aria-hidden="true">{letters}</span></h1>
-      <div class="p-intro">
-        <p class="p-question">{e(p['question'])}</p>
-        <div class="p-side">
-          <p class="p-summary">{e(p['summary'])}</p>
-          <dl class="p-meta">{meta}</dl>
-        </div>
-      </div>
-    </header>
-    <figure class="p-cover wrap">
-      <div class="frame">{img(p['cover'], p['title'], base, eager=True, extra=f' style="view-transition-name: cover-{p["slug"]}"')}</div>
-    </figure>
-    {''.join(render_block(b, base) for b in p['blocks'])}
-  </article>
-
-  <a class="next wrap" href="{nxt['slug']}.html" data-preview="../assets/img/{nxt['thumb']}.webp" data-slug="{nxt['slug']}" data-cursor="Suivant">
-    <span class="mono label">(Projet suivant)</span>
-    <span class="next-title">{roll(nxt['title'])}</span>
-    <span class="next-meta mono">{e(nxt['context'])} · {nxt['year']} {ARROW}</span>
-  </a>
-</main>"""
-    html += footer(base)
+<body class="page-project" id="top">
+<main id="main">{render_phero(i, p, base)}{render_pintro(p, base)}{render_pgallery(p, base)}
+</main>{render_pnext(nxt, base)}{scripts(base, [])}"""
     out = ROOT / "projets"
     out.mkdir(exist_ok=True)
     (out / f"{p['slug']}.html").write_text(html, encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# Page À propos
+# ---------------------------------------------------------------------------
+def render_ahero(base):
+    roles = "".join(f"<li>{e(r)}</li>" for r in SITE["roles"])
+    first, last = SITE["name"].split(" ", 1)
+    school = CV["Formation"][0][1].split(" · ")
+    return f"""
+  <section class="ahero grid" aria-labelledby="a-title">
+    <a class="skip" href="#parcours">Aller au contenu</a>
+    {render_nav(base, "about")}
+    <div class="ahero-head">
+      <p class="ahero-label">À propos</p>
+      <h1 class="ahero-title" id="a-title"><span><span>{e(first)}</span></span><span><span>{e(last)}</span></span></h1>
+      <ul class="ahero-roles">{roles}</ul>
+    </div>
+    <figure class="ahero-fig">
+      <div class="frame">{img("portrait", f"Portrait de {SITE['name']}", base, eager=True)}</div>
+      <figcaption class="g-cap"><span>{e(school[1])}</span><span>{e(school[0])}</span></figcaption>
+    </figure>
+  </section>"""
+
+
+def render_abio(base):
+    xp = CV["Expérience"][0]
+    meta = [
+        ("Formation", e(CV["Formation"][0][1])),
+        ("Expérience", f"{e(xp[1])} · {e(xp[0])}"),
+        ("E-mail", f'<a class="ulink" href="mailto:{SITE["email"]}">{e(SITE["email"])}</a>'),
+        ("Téléphone", f'<a href="tel:{SITE["phone_href"]}">{e(SITE["phone"])}</a>'),
+        ("Réseau", f'<a class="ulink" href="{SITE["linkedin"]}" target="_blank" rel="noopener">LinkedIn</a> {ARROW_UP}'),
+    ]
+    dl = "".join(f"\n      <div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in meta)
+    more = "".join(f"<p>{e(x)}</p>" for x in SITE["bio_more"])
+    return f"""
+  <section class="abio grid" id="parcours" aria-label="Présentation">
+    <dl class="abio-meta" data-reveal>{dl}
+    </dl>
+    <p class="abio-lead" data-reveal style="--d:.1s">{e(SITE['bio'])}</p>
+    <div class="abio-more" data-reveal style="--d:.2s">{more}</div>
+  </section>"""
+
+
+def render_acv(base):
+    groups = ""
+    for k, items in CV.items():
+        rows = "".join(f"""
+        <li><span class="acv-date">{e(d)}</span><span class="acv-title">{e(t)}</span><span class="acv-detail">{e(x)}</span></li>"""
+                       for d, t, x in items)
+        groups += f"""
+    <div class="acv-group grid" data-reveal>
+      <h2 class="acv-h">{e(k)}</h2>
+      <ul class="acv-list">{rows}
+      </ul>
+    </div>"""
+    return f"""
+  <section class="acv" aria-label="Parcours">{groups}
+  </section>"""
+
+
+def render_askills(base):
+    cols = "".join(f"""
+      <div><h3>{e(k)}</h3><ul>{''.join(f'<li>{e(x)}</li>' for x in items)}</ul></div>""" for k, items in SKILLS.items())
+    return f"""
+  <section class="askills grid" aria-labelledby="skills-title" data-reveal>
+    <h2 class="askills-h" id="skills-title">Compétences</h2>
+    <div class="askills-cols">{cols}
+    </div>
+  </section>"""
+
+
+def render_astudio(base):
+    steps = "".join(f"""
+      <li data-reveal style="--d:{k * 0.08:.2f}s"><span class="n">{k + 1:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>"""
+                    for k, (t, d) in enumerate(STUDIO["method"]))
+    figs = ""
+    for k, ((src, cap), (c, s, o)) in enumerate(zip(STUDIO["images"], STUDIO_LAYOUT)):
+        w, h = size(src)
+        figs += f"""
+      <figure style="--c:{c};--s:{s};--o:{o}px" data-reveal>
+        <div class="frame" style="aspect-ratio:{w}/{h}">{img(src, cap, base)}</div>
+        <figcaption class="g-cap"><span aria-hidden="true">{e(cap)}</span><span aria-hidden="true">{k + 1:02d}</span></figcaption>
+      </figure>"""
+    xp = CV["Expérience"][0]
+    return f"""
+  <section class="astudio" data-tone="dark" aria-labelledby="studio-title">
+    <div class="astudio-head grid">
+      <p class="astudio-label">Expérience · {e(xp[0])}</p>
+      <h2 class="astudio-title" id="studio-title" data-reveal>Design Studio<br><span>iXcampus, en alternance</span></h2>
+      <p class="astudio-intro" data-reveal style="--d:.1s">{e(STUDIO['intro'])}</p>
+    </div>
+    <ol class="astudio-steps">{steps}
+    </ol>
+    <div class="astudio-figs grid">{figs}
+    </div>
+    <dl class="astudio-dl grid">
+      <div data-reveal><dt>Missions</dt><dd>{e(STUDIO['missions'])}</dd></div>
+      <div data-reveal style="--d:.1s"><dt>Livrables</dt><dd>{e(STUDIO['deliverables'])}</dd></div>
+    </dl>
+  </section>"""
+
+
+def build_about():
+    base = ""
+    html = head(f"À propos · {SITE['name']}", SITE["bio"], base, ["about", "next", "footer"], og="portrait")
+    html += f"""
+<body class="page-about" id="top">
+<main id="main">{render_ahero(base)}{render_abio(base)}{render_acv(base)}{render_askills(base)}{render_astudio(base)}{render_next("index.html#projets", ["Projets", "sélectionnés"], "Voir les projets", base, pic=("thumb-vision",), here="À propos", there="Projets")}
+</main>{render_footer(base)}{scripts(base, [])}"""
+    (ROOT / "a-propos.html").write_text(html, encoding="utf-8")
+
+
 if __name__ == "__main__":
     build_index()
+    build_about()
     for i, p in enumerate(PROJECTS):
         build_project(i, p)
-    print(f"OK · index.html + {len(PROJECTS)} pages projet")
+    print(f"OK · index.html + a-propos.html + {len(PROJECTS)} pages projet")

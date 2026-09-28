@@ -1,0 +1,149 @@
+/* ==========================================================================
+   Accueil · Partenaires : bandeau défilant + mur de noms-marques
+   Aucun logo n'est redessiné ni imité. Chaque nom réel reçoit sa propre voix
+   typographique (famille, casse, construction) ; toutes les voix sont ensuite
+   ramenées à une même masse optique : --s est calculé hors ligne à partir de la
+   surface d'encre mesurée de chaque nom (même blanc, même densité perçue).
+   ========================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@62..125,500..900&family=Bagel+Fat+One&family=Cormorant+SC:wght@500;600&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,400&family=Fredoka:wght@600&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@500&family=Mrs+Saint+Delafield&family=Outfit:wght@200;700&family=Syne:wght@800&family=Unbounded:wght@500&display=swap");
+.clients {
+  --mk: clamp(20px, 2.05vw, 34px);     /* corps commun des noms-marques */
+  background: var(--black); color: var(--white);
+  padding: 150px 0 120px;
+  overflow: hidden;
+}
+
+/* Bandeau --------------------------------------------------------------- */
+.marquee { display: flex; overflow: hidden; user-select: none; }
+.marquee-track {
+  display: flex; flex: none; align-items: center; gap: .42em; padding-right: .42em;
+  font-size: clamp(40px, 4.3vw, 66px); font-weight: 500; letter-spacing: -.035em; line-height: 1.1;
+  white-space: nowrap;
+  animation: marquee 38s linear infinite;
+}
+.marquee-plus { width: .36em; height: .36em; flex: none; opacity: .9; }
+@keyframes marquee { to { transform: translateX(-100%); } }
+.clients:hover .marquee-track { animation-play-state: paused; }
+
+/* En-tête du mur -------------------------------------------------------- */
+.clients-head {
+  margin: 44px var(--g) 0; padding: 12px 0 14px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  border-top: 1px solid rgba(255, 255, 255, .16);
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1.3; color: #8a8a8a;
+}
+.clients-head p { margin: 0; }
+.clients-head p:last-child { white-space: nowrap; }
+.clients-count { color: var(--white); margin-right: .5em; font-variant-numeric: tabular-nums; }
+
+/* Mur ------------------------------------------------------------------- */
+.logos {
+  margin: 0; padding: 0 var(--g); list-style: none;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;
+}
+.logo {
+  position: relative; height: clamp(170px, 14.6vw, 226px);
+  display: grid; place-items: center;
+  background: var(--tile);
+  transition: background-color .6s var(--ease);
+}
+.logo::after {                /* filet intérieur, révélé au survol */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0);
+  transition: box-shadow .6s var(--ease);
+}
+.logo:hover { background: #171717; }
+.logo:hover::after { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
+
+.logo-n, .logo-tag {
+  position: absolute; font-size: 10px; font-weight: 500; line-height: 1; letter-spacing: .01em;
+  color: #5c5c5c; font-variant-numeric: tabular-nums;
+  transition: color .5s var(--ease), transform .7s var(--ease), opacity .5s var(--ease);
+}
+.logo-n { top: 12px; right: 13px; }
+.logo-tag { left: 13px; bottom: 12px; }
+.logo:hover .logo-n, .logo:hover .logo-tag { color: #d6d6d6; }
+
+/* Noms-marques : un système commun… ------------------------------------ */
+.mark {
+  display: inline-flex; align-items: center;
+  font-size: calc(var(--mk) * var(--s, 1));
+  line-height: 1; white-space: nowrap; color: var(--white);
+  font-kerning: normal; font-synthesis: none;
+  transform: translate(var(--ox, 0), var(--oy, 0));
+  transition: transform .9s var(--ease), opacity .6s var(--ease);
+}
+.mark-main { display: block; }
+.logo:hover .mark { transform: translate(var(--ox, 0), var(--oy, 0)) scale(1.05); }
+
+/* …et une voix par nom ------------------------------------------------- */
+/* 01 · géométrique large, bas de casse, le X porté en capitale */
+.mark--ixcampus { --s: 0.77; --oy: -0.048em; font-family: "Unbounded", var(--f); font-weight: 500; letter-spacing: -.04em; }
+/* 02 · italique à empattements, grand œil */
+.mark--inria { --s: 1.69; --oy: 0.006em; font-family: "Instrument Serif", serif; font-style: italic; letter-spacing: -.01em; }
+/* 03 · capitales étroites, hautes */
+.mark--jcdecaux { --s: 0.86; --oy: -0.026em; font-family: "Anton", var(--f); text-transform: uppercase; letter-spacing: .02em; }
+/* 04 · deux étages : sigle large, complément justifié lettre à lettre */
+.mark--sncf { --s: 0.78; --oy: -0.079em; flex-direction: column; align-items: stretch; font-family: "Syne", var(--f); font-weight: 800; letter-spacing: -.01em; }
+.mark--sncf .mark-sub {
+  display: flex; justify-content: space-between; margin-top: .26em;
+  font-family: "JetBrains Mono", monospace; font-size: .27em; font-weight: 500; letter-spacing: 0;
+}
+/* 05 · sigle à empattements doux + complément italique sous filet vertical */
+.mark--cy { --s: 1.37; --oy: -0.015em; gap: .2em; font-family: "Fraunces", serif; font-weight: 600; font-variation-settings: "opsz" 144; letter-spacing: -.03em; }
+.mark--cy .mark-sub {
+  display: flex; flex-direction: column; justify-content: center; align-self: stretch;
+  padding: .06em 0 .02em .26em; border-left: 1px solid currentColor;
+  font-size: .33em; font-style: italic; font-weight: 400; letter-spacing: 0; line-height: 1.08;
+  font-variation-settings: "opsz" 9;
+}
+/* 06 · capitales très larges, au trait */
+.mark--howest { --s: 0.93; --oy: 0.041em;
+  font-family: "Archivo", var(--f); font-weight: 900; font-stretch: 125%; letter-spacing: .01em;
+  color: transparent; -webkit-text-stroke: max(1.3px, .045em) var(--white);
+}
+/* 07 · écriture cursive */
+.mark--trembless { --s: 1.46; --oy: 0.193em; font-family: "Mrs Saint Delafield", cursive; letter-spacing: 0; }
+/* 08 · un nom, deux graisses, deux étages */
+.mark--vestaclim { --s: 1.07; --oy: -0.030em; font-family: "Outfit", var(--f); letter-spacing: -.03em; text-transform: lowercase;
+  flex-direction: column; align-items: flex-start; line-height: .86; }
+.mark--vestaclim .mark-part:first-child { font-weight: 200; }
+.mark--vestaclim .mark-part:last-child { font-weight: 700; }
+/* 09 · arrondie, bas de casse */
+.mark--iroony { --s: 1.15; --oy: -0.06em; font-family: "Fredoka", var(--f); font-weight: 600; letter-spacing: -.02em; text-transform: lowercase; }
+/* 10 · pleine et ronde */
+.mark--pipop { --s: 1.10; --oy: -0.11em; font-family: "Bagel Fat One", var(--f); letter-spacing: -.01em; }
+/* 11 · capitales romaines espacées */
+.mark--advitam { --s: 1.11; --oy: 0.020em; font-family: "Cormorant SC", serif; font-weight: 600; letter-spacing: .14em; margin-right: -.14em; text-transform: uppercase; }
+/* 12 · chasse fixe + curseur de saisie */
+.mark--intuiti { --s: 1.00; --oy: 0.013em; font-family: "JetBrains Mono", monospace; font-weight: 500; letter-spacing: -.02em; }
+.mark-caret {
+  width: .55em; height: .16em; margin-left: .08em; align-self: flex-end; margin-bottom: .1em;
+  background: currentColor;
+}
+.logo:hover .mark-caret { animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+
+/* Apparition échelonnée (finit toujours visible) */
+.js .logos[data-reveal] { opacity: 1; transform: none; transition: none; }
+.js .logos .logo { opacity: 0; transform: translate3d(0, 22px, 0); }
+.js .logos.is-in .logo {
+  opacity: 1; transform: none;
+  transition: opacity .9s var(--ease) calc(var(--i) * 45ms), transform 1.1s var(--ease) calc(var(--i) * 45ms),
+    background-color .6s var(--ease);
+}
+
+@media (max-width: 1100px) {
+  .logos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  .clients { padding: 90px 0 100px; --mk: 21px; }
+  .clients-head { margin-top: 30px; }
+  .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logo { height: 124px; }
+  .logo-tag { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track, .logo:hover .mark-caret { animation: none; }
+  .js .logos .logo { opacity: 1; transform: none; }
+}

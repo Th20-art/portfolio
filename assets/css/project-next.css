@@ -1,0 +1,151 @@
+/* ==========================================================================
+   Projet · Projet suivant (image plein cadre) + barre de bas de page
+   Le titre se pose sur le côté calme de la couverture (calculé au build :
+   .is-left / .is-right), avec un voile directionnel qui lui garantit le contraste
+   (.is-dark : texte blanc, voile sombre ; .is-light : texte noir, voile clair).
+   ========================================================================== */
+.pnext { background: var(--bg); }
+.pnext-link {
+  --pn-pad: clamp(22px, 2.6vw, 40px);
+  --pn-veil: 8, 10, 12;
+  --pn-a: .4;
+  position: relative; display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  height: 76vh; height: 76svh; min-height: 480px;
+  padding: var(--pn-pad) var(--g);
+  overflow: hidden; isolation: isolate; color: var(--ink);
+}
+.pnext-link.is-dark { color: var(--white); }
+.pnext-link.is-light { --pn-veil: 243, 243, 242; }
+
+.pnext-link img {
+  position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.02); transition: transform 1.6s var(--ease);
+}
+.pnext-link:hover img, .pnext-link:focus-visible img { transform: scale(1.06); }
+
+/* Voile : dense sous le texte, nul du côté du sujet */
+.pnext-veil {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(to top, rgba(var(--pn-veil), calc(var(--pn-a) * .75)) 0%, rgba(var(--pn-veil), 0) 58%),
+    linear-gradient(to var(--pn-dir, right),
+      rgba(var(--pn-veil), var(--pn-a)) 0%,
+      rgba(var(--pn-veil), calc(var(--pn-a) * .72)) 26%,
+      rgba(var(--pn-veil), calc(var(--pn-a) * .25)) 46%,
+      rgba(var(--pn-veil), 0) 64%);
+  transition: opacity 1s var(--ease);
+}
+.pnext-link.is-right { --pn-dir: left; }
+
+/* Rangée haute : libellé + index, du côté calme */
+.pnext-top {
+  grid-column: 1; grid-row: 1;
+  display: flex; align-items: center; gap: 16px;
+  font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+}
+.pnext-kicker { display: inline-flex; align-items: center; gap: 10px; }
+.pnext-kicker::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+}
+.pnext-count {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-variant-numeric: tabular-nums; opacity: .72;
+}
+.pnext-count i { display: block; width: 22px; height: 1px; background: currentColor; }
+
+/* Titre + méta */
+.pnext-body {
+  grid-column: 1; grid-row: 3; align-self: end;
+  display: flex; flex-direction: column; gap: 22px;
+  max-width: min(46vw, 720px);
+}
+.pnext-title {
+  font-size: clamp(64px, 8.6vw, 148px); line-height: .86; font-weight: 600;
+  letter-spacing: -.055em; margin-left: -.05em;
+  text-wrap: balance;
+}
+.pnext-meta {
+  display: flex; flex-wrap: wrap; align-items: center;
+  font-size: 13px; font-weight: 500; line-height: 1;
+}
+.pnext-meta > span { display: inline-flex; align-items: center; }
+.pnext-meta > span + span::before {
+  content: ""; width: 18px; height: 1px; margin: 0 10px; background: currentColor; opacity: .5;
+}
+
+/* Appel à l'action : disque, côté sujet */
+.pnext-go {
+  grid-column: 2; grid-row: 3; align-self: end;
+  display: inline-flex; align-items: center; gap: 16px;
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink);
+}
+.pnext-go-label {
+  background: var(--white); border-radius: 999px; padding: 11px 16px; line-height: 1;
+  transform: translateX(8px); opacity: 0;
+  transition: opacity .5s var(--ease), transform .7s var(--ease);
+}
+.pnext-go-disc {
+  display: grid; place-items: center;
+  width: clamp(64px, 5.6vw, 88px); aspect-ratio: 1; border-radius: 50%;
+  background: var(--white); color: var(--ink);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .35);
+  transition: transform .7s var(--ease), background-color .4s, color .4s;
+}
+.pnext-go-disc .arrow { width: 22px; height: 22px; transition: transform .7s var(--ease); }
+.pnext-link:hover .pnext-go-label, .pnext-link:focus-visible .pnext-go-label { opacity: 1; transform: none; }
+.pnext-link:hover .pnext-go-disc, .pnext-link:focus-visible .pnext-go-disc {
+  transform: scale(1.08); background: var(--ink); color: var(--white);
+}
+.pnext-link:hover .pnext-go-disc .arrow { transform: translateX(3px); }
+
+/* Sujet à gauche : tout bascule à droite */
+.pnext-link.is-right { grid-template-columns: auto minmax(0, 1fr); }
+.pnext-link.is-right .pnext-top,
+.pnext-link.is-right .pnext-body { grid-column: 2; justify-self: end; align-items: flex-end; text-align: right; }
+.pnext-link.is-right .pnext-go { grid-column: 1; flex-direction: row-reverse; }
+.pnext-link.is-right .pnext-meta { justify-content: flex-end; }
+
+.pnext-link:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
+.pnext-link.is-dark:focus-visible { outline-color: var(--white); }
+
+/* Barre de bas de page */
+.pbar {
+  min-height: 250px; padding: 0 var(--g);
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: end;
+  font-size: 10px; font-weight: 500;
+}
+.pbar > * { padding-bottom: 54px; }
+.pbar > :last-child { justify-self: end; display: flex; gap: 18px; }
+.pbar a { display: inline-flex; align-items: center; gap: 8px; }
+.pbar .arrow { width: 10px; height: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pnext-link img, .pnext-go-disc, .pnext-go-label, .pnext-go-disc .arrow { transition: none; }
+  .pnext-link:hover img { transform: scale(1.02); }
+}
+
+@media (max-width: 800px) {
+  .pnext-link { height: auto; min-height: 520px; grid-template-columns: minmax(0, 1fr) auto; }
+  .pnext-link.is-right { grid-template-columns: minmax(0, 1fr) auto; }
+  .pnext-link.is-right .pnext-top, .pnext-link.is-right .pnext-body {
+    grid-column: 1; justify-self: start; align-items: flex-start; text-align: left;
+  }
+  .pnext-link.is-right .pnext-go { grid-column: 2; flex-direction: row; }
+  .pnext-link.is-right .pnext-meta { justify-content: flex-start; }
+  .pnext-veil, .pnext-link.is-right .pnext-veil {
+    background: linear-gradient(to top, rgba(var(--pn-veil), var(--pn-a)) 0%, rgba(var(--pn-veil), .15) 60%, rgba(var(--pn-veil), .25) 100%);
+  }
+  .pnext-body { max-width: none; gap: 16px; }
+  .pnext-meta { row-gap: 8px; }
+  .pnext-meta > span:last-child { flex-basis: 100%; }
+  .pnext-meta > span:last-child::before { display: none; }
+  .pnext-title { font-size: 52px; }
+  .pnext-go-label { display: none; }
+  .pnext-go-disc { width: 56px; }
+  .pbar { min-height: 0; padding-top: 50px; padding-bottom: 80px; grid-template-columns: 1fr 1fr; row-gap: 12px; }
+  .pbar > * { padding-bottom: 0; }
+  .pbar > :nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+}
