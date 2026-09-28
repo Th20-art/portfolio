@@ -412,38 +412,46 @@ INTRO_LINES = ["Je transforme", "des sujets complexes", "en expériences utiles"
 
 # Carrousel du hero : projet, visuel plein cadre et recadrage
 HERO_SLIDES = [
-    # fit : visuel détouré posé au centre (fx/fy = point focal, h = hauteur) ; sinon plein cadre
-    {"slug": "vision", "img": "vision-screens", "alt": "Trois écrans de l’application Vision",
-     "fit": {"h": "84%", "fx": "52%", "fy": "50%"}},
+    # fit : visuel détouré posé sur le fond (cx = position horizontale dans l'écran, fx/fy = point focal,
+    # h = hauteur) ; sinon plein cadre. k = corps du titre en vw. line = phrase courte reprise du projet.
+    {"slug": "vision", "img": "hero-vision-screens", "alt": "Trois écrans de l’application Vision",
+     "fit": {"h": "90%", "fx": "51%", "fy": "52%", "cx": "64%"}, "k": 15,
+     "line": "Une application qui intercepte les tentations d’achat et aide à formuler des objectifs."},
     {"slug": "liawalk", "img": "liawalk-float", "alt": "Rendu 3D du dispositif mobile LIAWALK",
-     "pos": "50% 62%", "zoom": 1.16, "origin": "62% 64%"},
+     "pos": "50% 62%", "zoom": 1.16, "origin": "62% 64%", "k": 10.4,
+     "line": "Des doubles numériques nés du vécu professionnel des travailleurs sociaux."},
     {"slug": "pentagone", "img": "pentagone-cover", "alt": "Module pentagonal en liège, vue de dessus",
-     "fit": {"h": "86%", "fx": "73%", "fy": "35%"}},
+     "fit": {"h": "80%", "fx": "73%", "fy": "35%", "cx": "64%"}, "k": 9.6,
+     "line": "Un banc augmenté en mobilier urbain, point d’entrée vers l’engagement citoyen local."},
 ]
 
-HERO_DIM = 0.9  # les visuels détourés sont légèrement assombris pour un fond gris
+HERO_DIM = 0.95  # les visuels détourés sont légèrement assombris pour un fond gris
 
 # Visuel de chaque projet dans la grille de l'accueil
 CARDS = {
-    "vision": "vision-cover", "liawalk": "liawalk-cover", "pentagone": "pentagone-nfc",
+    "vision": "work-vision", "liawalk": "liawalk-cover", "pentagone": "work-pentagone",
     "site-ixcampus": "ixcampus-mobile", "lannion": "lannion-book", "design-fablab": "fablab-cover",
 }
 CARDS_VISIBLE = 4  # les suivants s'affichent avec « Voir tous les projets »
 
-# Organisations citées dans le CV et les projets (nom, relation, variante typographique)
+# Organisations citées dans le CV et les projets (nom, relation, composition du nom-marque).
+# Composition : None = nom sur une ligne ; ("stack", haut, bas) = deux étages ;
+# ("side", principal, complément) = principal + complément en petit à droite.
+# Aucun logo n'est redessiné : chaque nom réel est composé dans un même système typographique,
+# puis calibré optiquement (hauteur et masse communes) par assets/js/clients.js.
 CLIENTS = [
-    ("iXcampus", "Alternance · 2024 → 2026", "a"),
-    ("Inria", "Partenaire · LIAWALK", "c"),
-    ("JCDecaux", "Partenaire · Pentagone", "b"),
-    ("SNCF Réseau", "Stage · 2023", "d"),
-    ("CY école de design", "Formation · Master 2", "e"),
-    ("HOWEST", "Erasmus · 2024", "c"),
-    ("TrembLess", "Startup · Design Studio", "a"),
-    ("VestaClim", "Startup · Design Studio", "d"),
-    ("Iroony", "Startup · Design Studio", "e"),
-    ("PiPop", "Startup · Design Studio", "a"),
-    ("Advitam", "Identité · Site iXcampus", "b"),
-    ("Intuiti", "Développement · Site iXcampus", "d"),
+    ("iXcampus", "Alternance · 2024 → 2026", None),
+    ("Inria", "Partenaire · LIAWALK", None),
+    ("JCDecaux", "Partenaire · Pentagone", None),
+    ("SNCF Réseau", "Stage · 2023", ("stack", "SNCF", "Réseau")),
+    ("CY école de design", "Formation · Master 2", ("side", "CY", "école de|design")),
+    ("HOWEST", "Erasmus · 2024", None),
+    ("TrembLess", "Startup · Design Studio", None),
+    ("VestaClim", "Startup · Design Studio", None),
+    ("Iroony", "Startup · Design Studio", None),
+    ("PiPop", "Startup · Design Studio", None),
+    ("Advitam", "Identité · Site iXcampus", None),
+    ("Intuiti", "Développement · Site iXcampus", None),
 ]
 MARQUEE = ["Partenaires", "Clients", "Collaborations"]
 
@@ -622,14 +630,25 @@ def render_nav(base, current):
   </header>"""
 
 
-def render_next(href, lines, sub):
-    title = "".join(f'<span class="line"><span>{e(x)}</span></span>' for x in lines)
+def render_next(href, lines, sub, base="", pic=None, here="Accueil", there="À propos"):
+    """Appel « page suivante » : titre géant + vignette, CTA contrasté, barre de progression pleine largeur."""
+    thumb = ""
+    if pic:
+        thumb = f'<span class="next-pic" aria-hidden="true">{img(pic[0], "", base)}</span>'
+    rows = ""
+    for i, x in enumerate(lines):
+        extra = thumb if i == 0 else ""
+        rows += f'<span class="line"><span>{e(x)}{extra}</span></span>'
     return f"""
   <section class="next" data-chunk="next" aria-label="Page suivante">
-    <p class="next-label">Page suivante</p>
-    <a class="next-link" href="{href}" data-reveal>
-      <span class="next-title">{title}</span>
-      <span class="next-sub">{e(sub)} {ARROW}</span>
+    <p class="next-label"><span>Page suivante</span></p>
+    <a class="next-link" href="{href}">
+      <span class="next-title" data-reveal>{rows}</span>
+      <span class="next-cta" data-reveal style="--d:.12s"><span class="next-cta-txt">{e(sub)}</span><span class="next-cta-ico">{ARROW}</span></span>
+      <span class="next-bar" aria-hidden="true">
+        <span class="next-seg next-seg--here"><span class="next-seg-lab"><b>Vous êtes ici</b>{e(here)}</span><i class="next-track"><i class="next-fill"></i></i></span>
+        <span class="next-seg next-seg--there"><span class="next-seg-lab"><b>Suivant</b>{e(there)} {ARROW}</span><i class="next-track"><i class="next-fill"></i></i></span>
+      </span>
     </a>
   </section>"""
 
@@ -640,17 +659,14 @@ def render_footer(base):
     pages = [("Accueil", home), ("Projets", f"{home}#projets"), ("À propos", f"{base}a-propos.html")]
     projs = [(p["title"], f"{base}projets/{p['slug']}.html") for p in PROJECTS]
     half = (len(projs) + 1) // 2
+    name = SITE["name"]
     return f"""
 <footer class="footer" id="contact" data-chunk="footer" data-tone="dark">
-  <div class="footer-top">
-    <p class="footer-mark">Théo Petitimbert</p>
-    <p class="footer-time"><span class="tiny">Heure locale · Paris</span><strong data-clock>--:--</strong></p>
-  </div>
   <div class="footer-cols grid">
-    <div class="footer-col">
+    <div class="footer-col footer-col--cta">
       <h2 class="footer-h">Travaillons ensemble</h2>
-      <ul class="footer-list">
-        <li><a class="ulink" href="mailto:{SITE['email']}">{e(SITE['email'])}</a></li>
+      <a class="footer-mail" href="mailto:{SITE['email']}"><span>{e(SITE['email'])}</span>{ARROW_UP}</a>
+      <ul class="footer-list footer-list--row">
         <li><a href="tel:{SITE['phone_href']}">{e(SITE['phone'])}</a></li>
         <li>{e(' · '.join(SITE['roles']))}</li>
       </ul>
@@ -663,10 +679,12 @@ def render_footer(base):
         <ul class="footer-list">{lis(projs[half:])}</ul>
       </div>
     </nav>
+    <p class="footer-col footer-time"><span class="footer-h">Heure locale · Paris</span><strong data-clock>--:--</strong></p>
   </div>
+  <p class="footer-mark" data-reveal><span class="fm-w"><span class="fm-t">{e(name)}</span></span></p>
   <div class="footer-bar">
     <a href="#top">{ARROW_TOP} Retour en haut</a>
-    <span>© 2026 Théo Petitimbert · Portfolio 2026</span>
+    <span>© 2026 {e(name)} · Portfolio 2026</span>
     <a href="{SITE['linkedin']}" target="_blank" rel="noopener">Suivre sur LinkedIn {ARROW_UP}</a>
   </div>
 </footer>"""
@@ -681,21 +699,30 @@ def render_hero(base):
     slides = nums = ""
     for i, s in enumerate(HERO_SLIDES):
         p = by[s["slug"]]
+        href = f"{base}projets/{p['slug']}.html"
         on = " is-active" if i == 0 else ""
-        style = f'--pos:{s.get("pos", "50% 50%")};--zoom:{s.get("zoom", 1)};--origin:{s.get("origin", "50% 50%")}'
+        style = (f'--pos:{s.get("pos", "50% 50%")};--zoom:{s.get("zoom", 1)};'
+                 f'--origin:{s.get("origin", "50% 50%")};--k:{s.get("k", 10)}')
         fit = s.get("fit")
         if fit:
-            style += (f';--h:{fit["h"]};--fx:{fit["fx"]};--fy:{fit["fy"]};'
+            style += (f';--h:{fit["h"]};--fx:{fit["fx"]};--fy:{fit["fy"]};--cx:{fit.get("cx", "50%")};'
                       f'--b:{HERO_DIM};--slide-bg:{edge_color(s["img"], HERO_DIM)}')
         mode = " hero-slide--fit" if fit else ""
         slides += f"""
       <article class="hero-slide{mode}{on}" aria-roledescription="diapositive" aria-label="{i + 1} sur {n}" style="{style}">
         <div class="hero-media">{img(s['img'], s['alt'], base, eager=i == 0)}</div>
-        <h2 class="hero-title"><a href="{base}projets/{p['slug']}.html"><span>{e(p['title'])}</span></a></h2>
-        <p class="hero-caption">{e(p['context'])} · {p['year']}<br>{e(p['tags'])}</p>
+        <div class="hero-copy">
+          <p class="hero-kicker"><span>({i + 1:02d})</span>{e(p['context'])}</p>
+          <h2 class="hero-title"><a href="{href}"><span>{e(p['title'])}</span></a></h2>
+          <div class="hero-sub">
+            <p>{e(s['line'])}</p>
+            <a class="hero-cta" href="{href}" tabindex="-1" aria-hidden="true"><span>Voir le projet</span><i>{ARROW}</i></a>
+          </div>
+        </div>
+        <p class="hero-caption"><span>{p['year']}</span>{e(p['tags'])}</p>
       </article>"""
         nums += f"""
-      <button type="button" class="hero-num{on}" data-go="{i}" aria-label="Afficher {e(p['title'])}"><span>{i + 1:02d}.</span><i class="track" aria-hidden="true"><i class="fill"></i></i></button>"""
+      <button type="button" class="hero-num{on}" data-go="{i}" aria-label="Afficher {e(p['title'])}"><span class="hero-num-n">{i + 1:02d}.</span><span class="hero-num-t" aria-hidden="true">{e(p['title'])}<small>{e(p['tags'])}</small></span><i class="track" aria-hidden="true"><i class="fill"></i></i></button>"""
     return f"""
   <section class="hero" data-chunk="hero" data-hero aria-roledescription="carrousel" aria-label="Projets à la une">
     <a class="skip" href="#intro">Aller au contenu</a>
@@ -754,7 +781,7 @@ def render_work(base):
     <div class="work-foot">
       <button type="button" class="work-toggle" data-more-toggle aria-expanded="false" aria-controls="work-more" data-close-label="Voir moins de projets" hidden>
         <span class="work-plus" aria-hidden="true"></span>
-        <span class="work-all"><span data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
+        <span class="work-all"><span class="work-all-label" data-more-label>Voir tous les projets</span><sup>{len(PROJECTS):02d}</sup></span>
       </button>
     </div>
   </section>"""
@@ -762,14 +789,30 @@ def render_work(base):
 
 def render_clients(base):
     track = "".join(f"<span>{e(w)}</span>{PLUS}" for w in MARQUEE * 2)
+
+    def mark(name, lock):
+        if not lock:
+            return f'<span class="mark"><span class="mark-main">{e(name)}</span></span>'
+        kind, main, sub = lock
+        sub = "".join(f"<span>{e(x)}</span>" for x in sub.split("|"))
+        return (f'<span class="mark mark--{kind}" aria-hidden="true"><span class="mark-main">{e(main)}</span>'
+                f'<span class="mark-sub">{sub}</span></span><span class="sr-only">{e(name)}</span>')
+
     tiles = "".join(f"""
-      <li class="logo"><span class="logo-tag">{e(tag)}</span><span class="logo-name logo-name--{v}">{e(name)}</span></li>"""
-                    for name, tag, v in CLIENTS)
+      <li class="logo" style="--i:{i}">
+        <span class="logo-n" aria-hidden="true">{i + 1:02d}</span>
+        {mark(name, lock)}
+        <span class="logo-tag">{e(tag)}</span>
+      </li>""" for i, (name, tag, lock) in enumerate(CLIENTS))
     return f"""
   <section class="clients" data-chunk="clients" data-tone="dark" aria-labelledby="clients-title">
     <h2 id="clients-title" class="sr-only">Partenaires, clients et collaborations</h2>
     <div class="marquee" aria-hidden="true"><div class="marquee-track">{track}</div><div class="marquee-track">{track}</div></div>
-    <ul class="logos">{tiles}
+    <div class="clients-head">
+      <p><span class="clients-count">{len(CLIENTS):02d}</span>Organisations rencontrées en formation, en stage, en alternance et en projet</p>
+      <p>2021 → 2026</p>
+    </div>
+    <ul class="logos" data-logos data-reveal>{tiles}
     </ul>
   </section>"""
 
@@ -791,27 +834,55 @@ def build_index():
                 ["hero", "intro", "work", "clients", "services", "next", "footer"])
     html += f"""
 <body class="page-home" id="top">
-<main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours")}
-</main>{render_footer(base)}{scripts(base, ["hero", "work", "services"])}"""
+<main id="main">{render_hero(base)}{render_intro(base)}{render_work(base)}{render_clients(base)}{render_services(base)}{render_next("a-propos.html", ["Parcours", "& savoir-faire"], "Découvrir le parcours", base, pic=("portrait",), here="Accueil", there="À propos")}
+</main>{render_footer(base)}{scripts(base, ["hero", "work", "clients", "services"])}"""
     (ROOT / "index.html").write_text(html, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
 # Pages projet : un rendu par section
 # ---------------------------------------------------------------------------
+# Cadrage du hero projet : (zoom, origine du zoom). Le sujet est poussé à droite et
+# déborde du cadre, pour laisser la gauche au titre et créer une tension.
+PHERO_CROP = {
+    "vision": (1.6, "9% 64%"),
+    "liawalk": (1.18, "78% 30%"),
+    "site-ixcampus": (1.6, "0% 0%"),
+    "pentagone": (1.55, "96% 30%"),
+    "lannion": (1.12, "70% 45%"),
+    "design-fablab": (2.1, "80% 30%"),
+}
+
+
+def phero_lines(title):
+    """Coupe les titres longs en deux lignes équilibrées."""
+    words = title.split()
+    if len(title) <= 10 or len(words) < 2:
+        return [title]
+    best = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
+    return [" ".join(words[:best]), " ".join(words[best:])]
+
+
 def render_phero(i, p, base):
     cover = p["cover"]
     t = tone(cover)
     dark = ' data-tone="dark"' if t == "dark" else ""
     sub = p.get("subtitle", p["context"])
+    z, o = PHERO_CROP.get(p["slug"], (1, "50% 50%"))
+    lines = phero_lines(p["title"])
+    longest = max(len(x) for x in lines)
+    title = "".join(f'<span><span style="--d:{.08 + k * .09:.2f}s">{e(x)}</span></span>' for k, x in enumerate(lines))
     return f"""
-  <section class="phero phero--{t}" data-chunk="phero"{dark} aria-labelledby="p-title">
+  <section class="phero phero--{t}" data-chunk="phero"{dark} aria-labelledby="p-title" style="--z:{z};--ox:{o.split()[0]};--oy:{o.split()[1]};--n:{longest}">
     <a class="skip" href="#pintro">Aller au contenu</a>
     {render_nav(base, "work")}
     <div class="phero-media">{img(cover, f"{p['title']}, image de couverture", base, eager=True)}</div>
-    <h1 class="phero-title" id="p-title"><span><span>{e(p['title'])}</span></span></h1>
-    <p class="phero-year">{p['year']}</p>
-    <p class="phero-text">{e(p['summary'])}</p>
+    <div class="phero-head">
+      <p class="phero-kicker"><span>Projet {i + 1:02d}</span><span>{p['year']}</span></p>
+      <p class="phero-tags">{e(p['tags'])}</p>
+      <p class="phero-text">{e(p['summary'])}</p>
+    </div>
+    <h1 class="phero-title phero-title--{len(lines)}" id="p-title">{title}</h1>
     <div class="phero-bar">
       <span>{e(p['title'])} · {e(sub)}</span>
       <a href="#pintro"><i aria-hidden="true"></i>Défiler</a>
@@ -1083,13 +1154,44 @@ def render_pgallery(p, base):
   </div>"""
 
 
+def pnext_zone(name, aspect=2.6):
+    """Côté le plus calme (moins de détails) du bas de la couverture, telle qu'elle est cadrée
+    dans le bandeau « Projet suivant », et sa luminosité : le titre s'y pose, en blanc sur
+    zone sombre, en noir sur zone claire."""
+    from PIL import ImageFilter, ImageStat
+    with Image.open(IMG / f"{name}.webp") as im:
+        g = im.convert("L")
+    w, h = g.size
+    vh = min(h, round(w / aspect))
+    top = (h - vh) // 2
+    g = g.crop((0, top, w, top + vh)).resize((360, round(360 * vh / w)))
+    W, H = g.size
+    edges = g.filter(ImageFilter.FIND_EDGES)
+    zones = {"left": (0, int(H * .3), int(W * .5), H), "right": (int(W * .5), int(H * .3), W, H)}
+    energy = {k: ImageStat.Stat(edges.crop(b)).mean[0] for k, b in zones.items()}
+    side = min(energy, key=energy.get)
+    st = ImageStat.Stat(g.crop(zones[side]))
+    t = "dark" if st.mean[0] < 150 else "light"
+    # voile proportionnel au contraste de la zone : léger sur un aplat, dense sur une photo chargée
+    veil = min(.7, max(.3, .25 + st.stddev[0] * .005)) if t == "dark" else .78
+    return side, t, round(veil, 2)
+
+
 def render_pnext(nxt, base):
-    t = tone(nxt["cover"], (.25, .3, .75, .7))
+    k = next(j for j, q in enumerate(PROJECTS) if q["slug"] == nxt["slug"])
+    side, t, veil = pnext_zone(nxt["cover"])
+    cls = f"pnext-link is-{side} is-{t}"
     return f"""
 <div class="pnext" data-chunk="pnext">
-  <a class="pnext-link{' is-dark' if t == 'dark' else ''}" href="{nxt['slug']}.html"{' data-tone="dark"' if t == 'dark' else ''}>
+  <a class="{cls}" style="--pn-a:{veil}" href="{nxt['slug']}.html"{' data-tone="dark"' if t == 'dark' else ''} aria-label="Projet suivant : {e(nxt['title'])}">
     {img(nxt['cover'], '', base)}
-    <span class="pnext-center"><span class="pnext-title">{e(nxt['title'])}</span><span class="pnext-sub">Projet suivant {ARROW}</span></span>
+    <span class="pnext-veil" aria-hidden="true"></span>
+    <span class="pnext-top" aria-hidden="true"><span class="pnext-kicker">Projet suivant</span><span class="pnext-count">{k + 1:02d}<i></i>{len(PROJECTS):02d}</span></span>
+    <span class="pnext-body">
+      <span class="pnext-title">{e(nxt['title'])}</span>
+      <span class="pnext-meta"><span>{e(nxt['context'])}</span><span>{e(nxt['year'])}</span><span>{e(nxt['tags'])}</span></span>
+    </span>
+    <span class="pnext-go" aria-hidden="true"><span class="pnext-go-label">Voir le projet</span><span class="pnext-go-disc">{ARROW}</span></span>
   </a>
   <footer class="pbar" id="contact">
     <a href="#top">{ARROW_TOP} Retour en haut</a>
@@ -1220,7 +1322,7 @@ def build_about():
     html = head(f"À propos · {SITE['name']}", SITE["bio"], base, ["about", "next", "footer"], og="portrait")
     html += f"""
 <body class="page-about" id="top">
-<main id="main">{render_ahero(base)}{render_abio(base)}{render_acv(base)}{render_askills(base)}{render_astudio(base)}{render_next("index.html#projets", ["Projets", "sélectionnés"], "Voir les projets")}
+<main id="main">{render_ahero(base)}{render_abio(base)}{render_acv(base)}{render_askills(base)}{render_astudio(base)}{render_next("index.html#projets", ["Projets", "sélectionnés"], "Voir les projets", base, pic=("thumb-vision",), here="À propos", there="Projets")}
 </main>{render_footer(base)}{scripts(base, [])}"""
     (ROOT / "a-propos.html").write_text(html, encoding="utf-8")
 
