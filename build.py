@@ -940,13 +940,44 @@ def render_pgallery(p, base):
   </div>"""
 
 
+def pnext_zone(name, aspect=2.6):
+    """Côté le plus calme (moins de détails) du bas de la couverture, telle qu'elle est cadrée
+    dans le bandeau « Projet suivant », et sa luminosité : le titre s'y pose, en blanc sur
+    zone sombre, en noir sur zone claire."""
+    from PIL import ImageFilter, ImageStat
+    with Image.open(IMG / f"{name}.webp") as im:
+        g = im.convert("L")
+    w, h = g.size
+    vh = min(h, round(w / aspect))
+    top = (h - vh) // 2
+    g = g.crop((0, top, w, top + vh)).resize((360, round(360 * vh / w)))
+    W, H = g.size
+    edges = g.filter(ImageFilter.FIND_EDGES)
+    zones = {"left": (0, int(H * .3), int(W * .5), H), "right": (int(W * .5), int(H * .3), W, H)}
+    energy = {k: ImageStat.Stat(edges.crop(b)).mean[0] for k, b in zones.items()}
+    side = min(energy, key=energy.get)
+    st = ImageStat.Stat(g.crop(zones[side]))
+    t = "dark" if st.mean[0] < 150 else "light"
+    # voile proportionnel au contraste de la zone : léger sur un aplat, dense sur une photo chargée
+    veil = min(.7, max(.3, .25 + st.stddev[0] * .005)) if t == "dark" else .78
+    return side, t, round(veil, 2)
+
+
 def render_pnext(nxt, base):
-    t = tone(nxt["cover"], (.25, .3, .75, .7))
+    k = next(j for j, q in enumerate(PROJECTS) if q["slug"] == nxt["slug"])
+    side, t, veil = pnext_zone(nxt["cover"])
+    cls = f"pnext-link is-{side} is-{t}"
     return f"""
 <div class="pnext" data-chunk="pnext">
-  <a class="pnext-link{' is-dark' if t == 'dark' else ''}" href="{nxt['slug']}.html"{' data-tone="dark"' if t == 'dark' else ''}>
+  <a class="{cls}" style="--pn-a:{veil}" href="{nxt['slug']}.html"{' data-tone="dark"' if t == 'dark' else ''} aria-label="Projet suivant : {e(nxt['title'])}">
     {img(nxt['cover'], '', base)}
-    <span class="pnext-center"><span class="pnext-title">{e(nxt['title'])}</span><span class="pnext-sub">Projet suivant {ARROW}</span></span>
+    <span class="pnext-veil" aria-hidden="true"></span>
+    <span class="pnext-top" aria-hidden="true"><span class="pnext-kicker">Projet suivant</span><span class="pnext-count">{k + 1:02d}<i></i>{len(PROJECTS):02d}</span></span>
+    <span class="pnext-body">
+      <span class="pnext-title">{e(nxt['title'])}</span>
+      <span class="pnext-meta"><span>{e(nxt['context'])}</span><span>{e(nxt['year'])}</span><span>{e(nxt['tags'])}</span></span>
+    </span>
+    <span class="pnext-go" aria-hidden="true"><span class="pnext-go-label">Voir le projet</span><span class="pnext-go-disc">{ARROW}</span></span>
   </a>
   <footer class="pbar" id="contact">
     <a href="#top">{ARROW_TOP} Retour en haut</a>
